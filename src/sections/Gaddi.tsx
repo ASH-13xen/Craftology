@@ -9,7 +9,6 @@ import Modal from "@/components/Modal";
 // --- CONFIGURATION ---
 const ITEMS_PER_PAGE = 8;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
-// Assuming endpoint is /api/gaddis based on previous patterns
 const API_URL = "https://craftology-backend.onrender.com/api/gaddi";
 
 const COLORS = {
@@ -42,7 +41,6 @@ export interface GaddiItem {
   price: number;
   image: string;
   description?: string;
-  // Modal requirements
   tags: string[];
   insta_reel?: string;
   video_link?: string;
@@ -81,7 +79,6 @@ export default function Gaddi({ onBack }: GaddiProps) {
         const jsonData = await response.json();
 
         // --- FIX: SAFE ARRAY EXTRACTION ---
-        // Checks if jsonData is an array, or looks inside .data or .gaddis
         const itemsArray = Array.isArray(jsonData)
           ? jsonData
           : jsonData.data || jsonData.gaddis || [];
@@ -90,7 +87,7 @@ export default function Gaddi({ onBack }: GaddiProps) {
         const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id,
-          tags: item.tags || [], // Ensure tags exist for Modal
+          tags: item.tags || [],
           insta_reel: item.insta_reel || "",
           video_link: item.video_link || "",
           description: item.description || "",
@@ -126,20 +123,28 @@ export default function Gaddi({ onBack }: GaddiProps) {
     }
   }, [currentItems, loading]);
 
-  // 2. Marquee Animation
+  // 2. Marquee Animation (FIXED)
   useEffect(() => {
+    // 1. Wait for loading to finish so elements exist
+    if (loading) return;
+
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
-        gsap.to(marqueeTrackRef.current, {
-          xPercent: -50,
-          repeat: -1,
-          duration: 40,
-          ease: "linear",
-        });
+        // 2. Use fromTo for consistent start position
+        gsap.fromTo(
+          marqueeTrackRef.current,
+          { xPercent: 0 },
+          {
+            xPercent: -50,
+            repeat: -1,
+            duration: 40,
+            ease: "linear",
+          },
+        );
       }
     });
     return () => ctx.revert();
-  }, []);
+  }, [loading]); // 3. Re-run when loading finishes
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -209,8 +214,8 @@ export default function Gaddi({ onBack }: GaddiProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          {/* Track contains two distinct sets of items for looping */}
-          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
+          {/* Added w-max to ensure loop calculates width correctly based on content */}
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
             {/* Set 1 */}
             <div className="flex items-center gap-16 px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (

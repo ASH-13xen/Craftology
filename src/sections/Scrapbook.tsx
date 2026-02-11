@@ -126,20 +126,28 @@ export default function Scrapbook({ onBack }: ScrapbookProps) {
     }
   }, [currentItems, loading]);
 
-  // 2. Marquee Animation
+  // 2. Marquee Animation (FIXED)
   useEffect(() => {
+    // 1. Wait for loading to finish so elements exist
+    if (loading) return;
+
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
-        gsap.to(marqueeTrackRef.current, {
-          xPercent: -50,
-          repeat: -1,
-          duration: 40,
-          ease: "linear",
-        });
+        // 2. Use fromTo for consistent start position
+        gsap.fromTo(
+          marqueeTrackRef.current,
+          { xPercent: 0 },
+          {
+            xPercent: -50,
+            repeat: -1,
+            duration: 40,
+            ease: "linear",
+          },
+        );
       }
     });
     return () => ctx.revert();
-  }, []);
+  }, [loading]); // 3. Re-run when loading finishes
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -209,11 +217,8 @@ export default function Scrapbook({ onBack }: ScrapbookProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          {/* FIX: Removed 'min-w-full' from the className below.
-              This ensures the div width exactly matches the content width, 
-              allowing xPercent: -50 to calculate the loop correctly.
-          */}
-          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
+          {/* Added w-max to ensure loop calculates width correctly based on content */}
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
             {/* Set 1 */}
             <div className="flex items-center gap-16 px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (

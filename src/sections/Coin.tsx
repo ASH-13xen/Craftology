@@ -124,9 +124,11 @@ export default function Coin({ onBack }: CoinProps) {
 
   // 2. Marquee Animation (FIXED)
   useEffect(() => {
+    // CRITICAL FIX: Do not try to animate if elements don't exist yet
+    if (loading) return;
+
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
-        // Changed to fromTo to ensure consistent starting position
         gsap.fromTo(
           marqueeTrackRef.current,
           { xPercent: 0 },
@@ -140,7 +142,7 @@ export default function Coin({ onBack }: CoinProps) {
       }
     });
     return () => ctx.revert();
-  }, []);
+  }, [loading]); // CRITICAL FIX: Re-run animation when loading finishes
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -209,7 +211,6 @@ export default function Coin({ onBack }: CoinProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          {/* Added w-max to ensure width is calculated based on content, not viewport */}
           <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
             {/* Set 1 */}
             <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">

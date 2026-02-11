@@ -42,12 +42,10 @@ const FILTERS = {
 };
 
 // --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
-// Converts "https://drive.google.com/file/d/ID/view" -> "https://drive.google.com/uc?export=view&id=ID"
 const getGoogleDriveImage = (url: string) => {
-  if (!url) return "/placeholder.jpg"; // Fallback image if empty
-  if (!url.includes("drive.google.com")) return url; // Return as-is if not a Drive link
+  if (!url) return "/placeholder.jpg";
+  if (!url.includes("drive.google.com")) return url;
 
-  // Extract ID
   const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
   const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
 
@@ -109,11 +107,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
 
         const jsonData = await response.json();
 
-        // 1. DEBUG: Look at your browser console to see the real structure
-        console.log("API Response from Backend:", jsonData);
-
-        // 2. FIX: Check if it's an array, or inside a property like .data
-        // If jsonData is an array, use it. If not, look for .data or default to empty []
+        // Check structure
         const itemsArray = Array.isArray(jsonData)
           ? jsonData
           : jsonData.data || jsonData.items || [];
@@ -187,19 +181,28 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     }
   }, [isFilterOpen]);
 
+  // --- MARQUEE ANIMATION (FIXED) ---
   useEffect(() => {
+    // 1. Wait for loading to finish so elements exist
+    if (loading) return;
+
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
-        gsap.to(marqueeTrackRef.current, {
-          xPercent: -50,
-          repeat: -1,
-          duration: 40,
-          ease: "linear",
-        });
+        // 2. Use fromTo for consistent start position
+        gsap.fromTo(
+          marqueeTrackRef.current,
+          { xPercent: 0 },
+          {
+            xPercent: -50,
+            repeat: -1,
+            duration: 40,
+            ease: "linear",
+          },
+        );
       }
     });
     return () => ctx.revert();
-  }, []);
+  }, [loading]); // 3. Re-run when loading finishes
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -274,7 +277,8 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
+          {/* Added w-max to ensure correct loop calculation */}
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
             {[1, 2].map((set) => (
               <div
                 key={set}
