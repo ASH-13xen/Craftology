@@ -106,17 +106,26 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         if (!response.ok) {
           throw new Error("Failed to fetch data");
         }
+
         const jsonData = await response.json();
 
+        // 1. DEBUG: Look at your browser console to see the real structure
+        console.log("API Response from Backend:", jsonData);
+
+        // 2. FIX: Check if it's an array, or inside a property like .data
+        // If jsonData is an array, use it. If not, look for .data or default to empty []
+        const itemsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.items || [];
+
         // Format incoming data
-        const formattedData = jsonData.map((item: any) => ({
+        const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id,
           tags: item.tags || [],
           insta_reel: item.insta_reel || "",
           video_link: item.video_link || "",
           image: item.image || "",
-          // Explicitly map description, defaulting to empty string if missing
           description: item.description || "",
         }));
 
