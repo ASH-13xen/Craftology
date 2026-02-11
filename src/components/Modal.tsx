@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { EnvelopeItem } from "@/data/envelopedata";
-
+// Removed import from data file
+import { getDirectDriveUrl } from "@/utils/driveHelper";
 // Theme Colors
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -10,6 +10,19 @@ const COLORS = {
   ESPRESSO: "#371E10",
   GOLD: "#CD9860",
 };
+
+// Define Interface locally to match the passing prop
+interface EnvelopeItem {
+  _id?: string;
+  id?: string | number;
+  title: string;
+  price: number;
+  image: string;
+  tags: string[];
+  insta_reel?: string;
+  video_link?: string;
+  description?: string;
+}
 
 interface ModalProps {
   isOpen: boolean;
@@ -21,13 +34,37 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Helper: Extract Reel ID from full URL for Embed
-  const getEmbedUrl = (url: string) => {
-    if (!url) return "";
-    const cleanUrl = url.split("?")[0];
-    return cleanUrl.endsWith("/") ? `${cleanUrl}embed` : `${cleanUrl}/embed`;
-  };
+  // --- HELPER: GET MEDIA URL ---
+  // Returns the correct URL for the iframe (Insta > Video Link)
+  const getMediaUrl = (item: EnvelopeItem) => {
+    // 1. Priority: Instagram Reel
+    if (item.insta_reel && item.insta_reel.trim() !== "") {
+      const cleanUrl = item.insta_reel.split("?")[0];
+      return cleanUrl.endsWith("/") ? `${cleanUrl}embed` : `${cleanUrl}/embed`;
+    }
 
+    // 2. Fallback: Video Link
+    if (item.video_link && item.video_link.trim() !== "") {
+      // HANDLE GOOGLE DRIVE VIDEO
+      if (item.video_link.includes("drive.google.com")) {
+        return getDirectDriveUrl(item.video_link, "video");
+      }
+
+      // Handle YouTube
+      if (item.video_link.includes("youtube.com/watch?v=")) {
+        const videoId = item.video_link.split("v=")[1]?.split("&")[0];
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+      if (item.video_link.includes("youtu.be/")) {
+        const videoId = item.video_link.split("youtu.be/")[1]?.split("?")[0];
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+
+      return item.video_link;
+    }
+
+    return "";
+  };
   // Close on Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -70,6 +107,8 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
 
   if (!isOpen || !product) return null;
 
+  const mediaSrc = getMediaUrl(product);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
       {/* Backdrop */}
@@ -93,16 +132,25 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
           ✕
         </button>
 
-        {/* LEFT SIDE: Instagram Reel */}
+        {/* LEFT SIDE: Media (Insta or Video) */}
         <div className="w-full md:w-1/2 h-1/2 md:h-full bg-black flex items-center justify-center relative">
-          <iframe
-            src={getEmbedUrl(product.insta_reel)}
-            className="w-full h-full object-cover"
-            frameBorder="0"
-            scrolling="no"
-            allowTransparency={true}
-            allowFullScreen={true}
-          ></iframe>
+          {mediaSrc ? (
+            <iframe
+              src={mediaSrc}
+              className="w-full h-full object-cover"
+              frameBorder="0"
+              scrolling="no"
+              allowTransparency={true}
+              allowFullScreen={true}
+            ></iframe>
+          ) : (
+            // Fallback if no video exists (show Image)
+            <img
+              src={product.image}
+              alt={product.title}
+              className="w-full h-full object-cover opacity-80"
+            />
+          )}
         </div>
 
         {/* RIGHT SIDE: Product Details */}
@@ -122,9 +170,18 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
               Description
             </h3>
             <p className="text-lg leading-relaxed opacity-80 font-serif font-light">
-              This handcrafted envelope adds a touch of elegance to your{" "}
-              {product.tags[0] || "special occasion"}. Made with premium
-              materials and designed to leave a lasting impression.
+              {product.description ? (
+                product.description
+              ) : (
+                <>
+                  This handcrafted envelope adds a touch of elegance to your{" "}
+                  {product.tags && product.tags.length > 0
+                    ? product.tags[0]
+                    : "special occasion"}
+                  . Made with premium materials and designed to leave a lasting
+                  impression.
+                </>
+              )}
             </p>
           </div>
 
@@ -132,7 +189,7 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
             <button
               onClick={() =>
                 window.open(
-                  `https://wa.me/919876543210?text=Hi, I am interested in ${product.title} (ID: ${product.id})`,
+                  `https://wa.me/919876543210?text=Hi, I am interested in ${product.title} (ID: ${product.id || product._id})`,
                   "_blank",
                 )
               }

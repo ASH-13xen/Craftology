@@ -1,13 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { envelopeData, EnvelopeItem } from "@/data/envelopedata";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
 
+// --- CONFIGURATION ---
 const ITEMS_PER_PAGE = 8;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
+const API_URL = "https://craftology-backend.onrender.com/api/envelope";
 
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -39,12 +41,45 @@ const FILTERS = {
   ],
 };
 
+// --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
+// Converts "https://drive.google.com/file/d/ID/view" -> "https://drive.google.com/uc?export=view&id=ID"
+const getGoogleDriveImage = (url: string) => {
+  if (!url) return "/placeholder.jpg"; // Fallback image if empty
+  if (!url.includes("drive.google.com")) return url; // Return as-is if not a Drive link
+
+  // Extract ID
+  const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
+  const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  return url;
+};
+
+// --- INTERFACE ---
+export interface EnvelopeItem {
+  _id?: string;
+  id?: string | number;
+  title: string;
+  price: number;
+  image: string;
+  tags: string[];
+  insta_reel?: string;
+  video_link?: string;
+  description?: string;
+}
+
 interface EnvelopeProps {
   onBack?: () => void;
 }
 
 export default function Envelope({ onBack }: EnvelopeProps) {
-  // State
+  // --- STATE ---
+  const [data, setData] = useState<EnvelopeItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedOccasion, setSelectedOccasion] = useState("All");
   const [selectedDesign, setSelectedDesign] = useState("All");
@@ -62,8 +97,42 @@ export default function Envelope({ onBack }: EnvelopeProps) {
   const filterPanelRef = useRef<HTMLDivElement>(null);
   const marqueeTrackRef = useRef<HTMLDivElement>(null);
 
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error("Failed to fetch data");
+        }
+        const jsonData = await response.json();
+
+        // Format incoming data
+        const formattedData = jsonData.map((item: any) => ({
+          ...item,
+          id: item.id || item._id,
+          tags: item.tags || [],
+          insta_reel: item.insta_reel || "",
+          video_link: item.video_link || "",
+          image: item.image || "",
+          // Explicitly map description, defaulting to empty string if missing
+          description: item.description || "",
+        }));
+
+        setData(formattedData);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load envelopes.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // --- FILTER LOGIC ---
-  const filteredData = envelopeData.filter((item) => {
+  const filteredData = data.filter((item) => {
     const matchOccasion =
       selectedOccasion === "All" || item.tags.includes(selectedOccasion);
     const matchDesign =
@@ -79,19 +148,16 @@ export default function Envelope({ onBack }: EnvelopeProps) {
   );
 
   // --- ANIMATIONS ---
-
-  // 1. Grid Entrance
   useEffect(() => {
-    if (gridRef.current) {
+    if (!loading && gridRef.current && currentItems.length > 0) {
       gsap.fromTo(
         gridRef.current.children,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: "power3.out" },
       );
     }
-  }, [currentItems]);
+  }, [currentItems, loading]);
 
-  // 2. Filter Panel Slide
   useEffect(() => {
     if (filterPanelRef.current) {
       if (isFilterOpen) {
@@ -112,15 +178,16 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     }
   }, [isFilterOpen]);
 
-  // 3. Marquee Animation
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.to(marqueeTrackRef.current, {
-        xPercent: -50,
-        repeat: -1,
-        duration: 40,
-        ease: "linear",
-      });
+      if (marqueeTrackRef.current) {
+        gsap.to(marqueeTrackRef.current, {
+          xPercent: -50,
+          repeat: -1,
+          duration: 40,
+          ease: "linear",
+        });
+      }
     });
     return () => ctx.revert();
   }, []);
@@ -143,13 +210,44 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     setIsModalOpen(true);
   };
 
+  // --- LOADING / ERROR UI ---
+  if (loading) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] animate-pulse font-serif tracking-widest uppercase">
+          Loading Collection...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] font-serif">
+          {error} <br />{" "}
+          <span className="text-xs opacity-50">
+            Check connection to backend
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER ---
   return (
     <section
       ref={containerRef}
       className="w-full h-full overflow-y-auto relative selection:bg-[#CD9860] selection:text-white"
       style={{ backgroundColor: COLORS.LINEN, color: COLORS.ESPRESSO }}
     >
-      {/* --- ACTIVE BACKGROUND TEXTURE --- */}
+      {/* Background Noise Texture */}
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.3] mix-blend-multiply z-0"
         style={{
@@ -158,7 +256,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         }}
       />
 
-      {/* --- TOP MARQUEE (FIXED) --- */}
+      {/* Marquee */}
       <a
         href={WHATSAPP_LINK}
         target="_blank"
@@ -171,39 +269,28 @@ export default function Envelope({ onBack }: EnvelopeProps) {
             ref={marqueeTrackRef}
             className="flex whitespace-nowrap min-w-full"
           >
-            {/* Set 1 */}
-            <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <span
-                  key={`a-${i}`}
-                  className="text-[#F9F0EB] text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
-                >
-                  <span>Customise Every Detail</span> •{" "}
-                  <span>Chat on WhatsApp to Order</span> •{" "}
-                  <span>Handcrafted with Love</span> •
-                </span>
-              ))}
-            </div>
-
-            {/* Set 2 */}
-            <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <span
-                  key={`b-${i}`}
-                  className="text-[#F9F0EB] text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
-                >
-                  <span>Customise Every Detail</span> •{" "}
-                  <span>Chat on WhatsApp to Order</span> •{" "}
-                  <span>Handcrafted with Love</span> •
-                </span>
-              ))}
-            </div>
+            {[1, 2].map((set) => (
+              <div
+                key={set}
+                className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0"
+              >
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <span
+                    key={`${set}-${i}`}
+                    className="text-[#F9F0EB] text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
+                  >
+                    <span>Customise Every Detail</span> •{" "}
+                    <span>Chat on WhatsApp to Order</span> •{" "}
+                    <span>Handcrafted with Love</span> •
+                  </span>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </a>
 
-      {/* --- BACK BUTTON --- */}
-      {/* Adjusted top position for mobile to avoid clash with marquee/header */}
+      {/* Back Button */}
       <div className="absolute top-24 left-4 md:top-20 md:left-6 z-50">
         <button
           onClick={onBack}
@@ -218,11 +305,9 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         </button>
       </div>
 
-      {/* Main Content Container - Increased padding top for mobile */}
       <div className="max-w-7xl mx-auto px-4 md:px-12 py-12 min-h-full flex flex-col pt-36 md:pt-24 relative z-10">
-        {/* --- HEADER --- */}
+        {/* Header */}
         <div className="text-center mb-8 md:mb-10 space-y-3 md:space-y-4">
-          {/* Responsive Header Size */}
           <h1 className="text-4xl md:text-6xl lg:text-8xl font-serif leading-[0.9] text-[#371E10]">
             Envelopes
           </h1>
@@ -232,7 +317,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
           </p>
         </div>
 
-        {/* --- FILTER SECTION --- */}
+        {/* Filters */}
         <div className="mb-8 md:mb-12 flex flex-col items-center z-40 relative">
           <div className="flex gap-4 items-center">
             <button
@@ -245,9 +330,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
             >
               <span>Filters</span>
               <span
-                className={`text-base md:text-lg leading-none transition-transform duration-300 ${
-                  isFilterOpen ? "rotate-45" : ""
-                }`}
+                className={`text-base md:text-lg leading-none transition-transform duration-300 ${isFilterOpen ? "rotate-45" : ""}`}
               >
                 +
               </span>
@@ -275,11 +358,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedOccasion("All")}
-                    className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${
-                      selectedOccasion === "All"
-                        ? "bg-[#371E10] text-white"
-                        : "hover:bg-[#371E10]/10"
-                    }`}
+                    className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${selectedOccasion === "All" ? "bg-[#371E10] text-white" : "hover:bg-[#371E10]/10"}`}
                   >
                     All
                   </button>
@@ -290,11 +369,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
                         setSelectedOccasion(tag);
                         setCurrentPage(1);
                       }}
-                      className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${
-                        selectedOccasion === tag
-                          ? "bg-[#371E10] text-white shadow-md"
-                          : "text-[#371E10]/70 hover:bg-[#371E10]/5"
-                      }`}
+                      className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${selectedOccasion === tag ? "bg-[#371E10] text-white shadow-md" : "text-[#371E10]/70 hover:bg-[#371E10]/5"}`}
                     >
                       {tag}
                     </button>
@@ -308,11 +383,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedDesign("All")}
-                    className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${
-                      selectedDesign === "All"
-                        ? "bg-[#371E10] text-white"
-                        : "hover:bg-[#371E10]/10"
-                    }`}
+                    className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${selectedDesign === "All" ? "bg-[#371E10] text-white" : "hover:bg-[#371E10]/10"}`}
                   >
                     All
                   </button>
@@ -323,11 +394,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
                         setSelectedDesign(tag);
                         setCurrentPage(1);
                       }}
-                      className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${
-                        selectedDesign === tag
-                          ? "bg-[#371E10] text-white shadow-md"
-                          : "text-[#371E10]/70 hover:bg-[#371E10]/5"
-                      }`}
+                      className={`px-3 py-1 text-[10px] md:text-xs rounded-md transition-colors ${selectedDesign === tag ? "bg-[#371E10] text-white shadow-md" : "text-[#371E10]/70 hover:bg-[#371E10]/5"}`}
                     >
                       {tag}
                     </button>
@@ -338,35 +405,31 @@ export default function Envelope({ onBack }: EnvelopeProps) {
           </div>
         </div>
 
-        {/* --- PRODUCT GRID --- */}
+        {/* Product Grid */}
         <div
           ref={gridRef}
-          // MODIFIED HERE: grid-cols-2 for mobile
           className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-20 min-h-[400px]"
         >
           {currentItems.length > 0 ? (
             currentItems.map((item) => (
               <div
-                key={item.id}
+                key={item._id || item.id}
                 className="group flex flex-col cursor-pointer p-3 md:p-4 rounded-xl transition-all duration-500 hover:-translate-y-2 hover:bg-white"
                 style={{ border: `1px solid ${COLORS.ESPRESSO}10` }}
                 onClick={() => openModal(item)}
               >
-                {/* Image Card */}
                 <div className="relative aspect-[3/4] overflow-hidden rounded-lg mb-3 md:mb-4 bg-[#E5DACE] shadow-inner">
+                  {/* --- GOOGLE DRIVE IMAGE HANDLER --- */}
                   <Image
-                    src={item.image}
+                    src={getGoogleDriveImage(item.image)}
                     alt={item.title}
                     fill
                     className="object-cover transition-transform duration-1000 group-hover:scale-110"
                   />
-                  {/* Price Badge */}
                   <div className="absolute top-2 right-2 bg-[#F9F0EB]/90 backdrop-blur-md px-2 py-1 rounded text-[9px] md:text-[10px] font-bold text-[#371E10] shadow-sm border border-[#371E10]/10">
                     ₹{item.price}
                   </div>
                 </div>
-
-                {/* Info */}
                 <div className="flex flex-col gap-1 md:gap-2">
                   <h3 className="text-lg md:text-xl font-serif text-[#371E10] leading-tight group-hover:text-[#CD9860] transition-colors">
                     {item.title}
@@ -390,7 +453,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
           )}
         </div>
 
-        {/* --- PAGINATION --- */}
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="mt-auto flex justify-center items-center gap-3">
             <button
@@ -400,25 +463,15 @@ export default function Envelope({ onBack }: EnvelopeProps) {
             >
               ←
             </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-              const isActive = currentPage === page;
-              const pageNum = page < 10 ? `0${page}` : page;
-              return (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${
-                    isActive
-                      ? "bg-[#371E10] text-[#F9F0EB] shadow-lg scale-105"
-                      : "text-[#371E10] hover:bg-[#371E10]/5"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${currentPage === page ? "bg-[#371E10] text-[#F9F0EB] shadow-lg scale-105" : "text-[#371E10] hover:bg-[#371E10]/5"}`}
+              >
+                {page < 10 ? `0${page}` : page}
+              </button>
+            ))}
             <button
               disabled={currentPage === totalPages}
               onClick={() => handlePageChange(currentPage + 1)}

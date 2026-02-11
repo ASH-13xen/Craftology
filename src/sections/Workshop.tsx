@@ -1,9 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import gsap from "gsap";
-import { nextWorkshop } from "@/data/workshopdata";
+
+// --- CONFIGURATION ---
+const API_URL = "https://craftology-backend.onrender.com/api/workshop";
 
 // --- DARK THEME PALETTE ---
 const COLORS = {
@@ -13,31 +16,160 @@ const COLORS = {
   GOLD: "#CD9860", // Accent
 };
 
+// --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
+const getGoogleDriveImage = (url: string) => {
+  if (!url) return "/placeholder.jpg";
+  if (!url.includes("drive.google.com")) return url;
+
+  const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
+  const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  return url;
+};
+
+// --- INTERFACE ---
+interface WorkshopItem {
+  id?: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  price: number | string;
+  features: string[];
+  image: string;
+  locationName: string;
+  locationAddress: string;
+  mapEmbedUrl: string; // The src for the iframe
+  mapLink: string; // The external link
+}
+
 export default function Workshop() {
+  // --- STATE ---
+  const [workshop, setWorkshop] = useState<WorkshopItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- REFS ---
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
+  // --- FETCH DATA ---
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Animate Content Slide Up
-      gsap.fromTo(
-        contentRef.current,
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.2 },
-      );
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error("Failed to fetch workshop data");
+        }
+        const jsonData = await response.json();
 
-      // Animate Map Reveal
-      gsap.fromTo(
-        mapRef.current,
-        { scale: 0.95, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.4 },
-      );
-    }, containerRef);
+        // Logic: Get the MOST RECENT workshop (Last item in the array)
+        if (Array.isArray(jsonData) && jsonData.length > 0) {
+          // CHANGED: Selected the last index instead of [0]
+          const item = jsonData[jsonData.length - 1];
 
-    return () => ctx.revert();
+          // Map backend fields to UI fields
+          const formattedWorkshop: WorkshopItem = {
+            id: item._id || item.id,
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            time: item.time,
+            price: item.price,
+            features: item.features || [], // Ensure it's an array
+            image: item.image || "",
+            locationName: item.location_name || item.locationName || "Venue",
+            locationAddress:
+              item.location_address || item.locationAddress || "",
+            mapEmbedUrl: item.map_embed_url || item.mapEmbedUrl || "",
+            mapLink: item.map_link || item.mapLink || "",
+          };
+
+          setWorkshop(formattedWorkshop);
+        } else {
+          setError("No upcoming workshops scheduled.");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Unable to load workshop details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
+  // --- ANIMATIONS ---
+  useEffect(() => {
+    // Only run animation if data is loaded and refs exist
+    if (!loading && workshop && contentRef.current && mapRef.current) {
+      const ctx = gsap.context(() => {
+        // Animate Content Slide Up
+        gsap.fromTo(
+          contentRef.current,
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.2 },
+        );
+
+        // Animate Map Reveal
+        gsap.fromTo(
+          mapRef.current,
+          { scale: 0.95, opacity: 0 },
+          {
+            scale: 1,
+            opacity: 1,
+            duration: 0.8,
+            ease: "power3.out",
+            delay: 0.4,
+          },
+        );
+      }, containerRef);
+
+      return () => ctx.revert();
+    }
+  }, [loading, workshop]);
+
+  // --- RENDER: LOADING ---
+  if (loading) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center rounded-2xl"
+        style={{ backgroundColor: COLORS.CHAMPAGNE }}
+      >
+        <div className="text-[#F9F0EB] animate-pulse font-serif tracking-widest uppercase text-sm">
+          Loading Workshop...
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: ERROR ---
+  if (error || !workshop) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center rounded-2xl"
+        style={{ backgroundColor: COLORS.CHAMPAGNE }}
+      >
+        <div className="text-[#F9F0EB] font-serif text-center p-6">
+          <p className="mb-2">{error || "No workshop data available."}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs uppercase border-b border-[#CD9860] text-[#CD9860]"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: MAIN ---
   return (
     <section
       ref={containerRef}
@@ -68,31 +200,33 @@ export default function Workshop() {
                 Upcoming
               </span>
               <span className="text-[#CD9860] text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase">
-                Workshop 01
+                Workshop
               </span>
             </div>
 
             {/* Responsive Title Size */}
             <h1 className="text-3xl lg:text-7xl font-serif leading-[0.9] mb-4 lg:mb-6 text-[#F9F0EB]">
-              {nextWorkshop.title}
+              {workshop.title}
             </h1>
 
             {/* Responsive Body Text */}
             <p className="text-sm lg:text-lg leading-relaxed opacity-80 font-serif font-light max-w-md mb-6 lg:mb-8 text-[#F9F0EB]/80">
-              {nextWorkshop.description}
+              {workshop.description}
             </p>
 
             {/* Features List */}
-            <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-6 lg:mb-8">
-              {nextWorkshop.features.map((feat, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-1 lg:w-1.5 h-1 lg:h-1.5 rounded-full bg-[#CD9860]" />
-                  <span className="text-[10px] lg:text-xs uppercase font-bold tracking-wider opacity-70">
-                    {feat}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {workshop.features.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-6 lg:mb-8">
+                {workshop.features.map((feat, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-1 lg:w-1.5 h-1 lg:h-1.5 rounded-full bg-[#CD9860]" />
+                    <span className="text-[10px] lg:text-xs uppercase font-bold tracking-wider opacity-70">
+                      {feat}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Action Area */}
@@ -103,10 +237,10 @@ export default function Workshop() {
                   Date & Time
                 </p>
                 <p className="font-serif text-base lg:text-xl">
-                  {nextWorkshop.date}
+                  {workshop.date}
                 </p>
                 <p className="font-mono text-[10px] lg:text-sm opacity-70">
-                  {nextWorkshop.time}
+                  {workshop.time}
                 </p>
               </div>
               <div className="text-right">
@@ -114,7 +248,7 @@ export default function Workshop() {
                   Price
                 </p>
                 <p className="font-serif text-2xl lg:text-3xl text-[#CD9860]">
-                  ₹{nextWorkshop.price}
+                  ₹{workshop.price}
                 </p>
               </div>
             </div>
@@ -122,7 +256,7 @@ export default function Workshop() {
             <button
               onClick={() =>
                 window.open(
-                  `https://wa.me/919876543210?text=I want to book a slot for ${nextWorkshop.title}`,
+                  `https://wa.me/919876543210?text=I want to book a slot for ${workshop.title}`,
                   "_blank",
                 )
               }
@@ -139,8 +273,8 @@ export default function Workshop() {
         {/* Top Image Half */}
         <div className="h-1/2 relative bg-[#1a0f0a] overflow-hidden border-b border-[#F9F0EB]/10">
           <Image
-            src={nextWorkshop.image}
-            alt="Workshop Vibe"
+            src={getGoogleDriveImage(workshop.image)}
+            alt={workshop.title}
             fill
             className="object-cover opacity-80"
           />
@@ -159,10 +293,10 @@ export default function Workshop() {
                 Location
               </h3>
               <p className="font-serif text-base lg:text-xl mt-1 text-[#F9F0EB]">
-                {nextWorkshop.locationName}
+                {workshop.locationName}
               </p>
               <p className="text-[10px] lg:text-xs opacity-60 max-w-[200px] mt-1 text-[#F9F0EB]">
-                {nextWorkshop.locationAddress}
+                {workshop.locationAddress}
               </p>
             </div>
             <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-[#F9F0EB]/20 flex items-center justify-center text-[#F9F0EB]">
@@ -172,29 +306,37 @@ export default function Workshop() {
 
           {/* EMBEDDED MAP CONTAINER */}
           <div className="relative flex-grow w-full rounded-lg overflow-hidden border border-[#F9F0EB]/10 shadow-inner bg-[#2C1810] group cursor-pointer">
-            <iframe
-              src={nextWorkshop.mapEmbedUrl}
-              width="100%"
-              height="100%"
-              style={{
-                border: 0,
-                opacity: 0.6,
-                filter: "grayscale(100%) invert(90%) contrast(80%)",
-              }}
-              loading="lazy"
-              className="transition-all duration-500 group-hover:opacity-90 group-hover:filter-none"
-            ></iframe>
+            {workshop.mapEmbedUrl ? (
+              <iframe
+                src={workshop.mapEmbedUrl}
+                width="100%"
+                height="100%"
+                style={{
+                  border: 0,
+                  opacity: 0.6,
+                  filter: "grayscale(100%) invert(90%) contrast(80%)",
+                }}
+                loading="lazy"
+                className="transition-all duration-500 group-hover:opacity-90 group-hover:filter-none"
+              ></iframe>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center opacity-30 text-xs">
+                Map not available
+              </div>
+            )}
 
-            <a
-              href={nextWorkshop.mapLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute inset-0 z-20 flex items-center justify-center bg-black/10 hover:bg-black/40 transition-colors"
-            >
-              <span className="px-3 py-2 lg:px-4 lg:py-2 bg-[#F9F0EB] text-[#2C1810] text-[9px] lg:text-[10px] font-bold uppercase tracking-widest shadow-md opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                Open in Google Maps
-              </span>
-            </a>
+            {workshop.mapLink && (
+              <a
+                href={workshop.mapLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute inset-0 z-20 flex items-center justify-center bg-black/10 hover:bg-black/40 transition-colors"
+              >
+                <span className="px-3 py-2 lg:px-4 lg:py-2 bg-[#F9F0EB] text-[#2C1810] text-[9px] lg:text-[10px] font-bold uppercase tracking-widest shadow-md opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                  Open in Google Maps
+                </span>
+              </a>
+            )}
           </div>
         </div>
       </div>

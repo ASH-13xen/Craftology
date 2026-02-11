@@ -1,13 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { gaddiData, GaddiItem } from "@/data/gaddidata";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
 
+// --- CONFIGURATION ---
 const ITEMS_PER_PAGE = 8;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
+// Assuming endpoint is /api/gaddis based on previous patterns
+const API_URL = "https://craftology-backend.onrender.com/api/gaddi";
 
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -17,15 +20,48 @@ const COLORS = {
   WHITE: "#FFFFFF",
 };
 
+// --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
+const getGoogleDriveImage = (url: string) => {
+  if (!url) return "/placeholder.jpg";
+  if (!url.includes("drive.google.com")) return url;
+
+  const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
+  const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  return url;
+};
+
+// --- INTERFACES ---
+export interface GaddiItem {
+  _id?: string;
+  id?: string | number;
+  title: string;
+  price: number;
+  image: string;
+  description?: string;
+  // Modal requirements
+  tags: string[];
+  insta_reel?: string;
+  video_link?: string;
+}
+
 interface GaddiProps {
   onBack?: () => void;
 }
 
 export default function Gaddi({ onBack }: GaddiProps) {
   // --- STATE ---
+  const [data, setData] = useState<GaddiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<GaddiItem | null>(
+    null,
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- REFS ---
@@ -33,33 +69,68 @@ export default function Gaddi({ onBack }: GaddiProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const marqueeTrackRef = useRef<HTMLDivElement>(null);
 
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error("Failed to fetch data");
+        }
+        const jsonData = await response.json();
+
+        // Format data
+        const formattedData = jsonData.map((item: any) => ({
+          ...item,
+          id: item.id || item._id,
+          tags: item.tags || [], // Ensure tags exist for Modal
+          insta_reel: item.insta_reel || "",
+          video_link: item.video_link || "",
+          description: item.description || "",
+          image: item.image || "",
+        }));
+
+        setData(formattedData);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load Gaddi collection.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // --- PAGINATION LOGIC ---
-  const totalPages = Math.ceil(gaddiData.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = gaddiData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const currentItems = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // --- ANIMATIONS ---
 
   // 1. Grid Entrance
   useEffect(() => {
-    if (gridRef.current) {
+    if (!loading && gridRef.current && currentItems.length > 0) {
       gsap.fromTo(
         gridRef.current.children,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: "power3.out" },
       );
     }
-  }, [currentItems]);
+  }, [currentItems, loading]);
 
   // 2. Marquee Animation
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.to(marqueeTrackRef.current, {
-        xPercent: -50,
-        repeat: -1,
-        duration: 40,
-        ease: "linear",
-      });
+      if (marqueeTrackRef.current) {
+        gsap.to(marqueeTrackRef.current, {
+          xPercent: -50,
+          repeat: -1,
+          duration: 40,
+          ease: "linear",
+        });
+      }
     });
     return () => ctx.revert();
   }, []);
@@ -72,11 +143,42 @@ export default function Gaddi({ onBack }: GaddiProps) {
   };
 
   const openModal = (product: GaddiItem) => {
-    // Add empty tags array since Gaddi items might not have tags, but Modal expects them
-    setSelectedProduct({ ...product, tags: [] });
+    setSelectedProduct(product);
     setIsModalOpen(true);
   };
 
+  // --- LOADING STATE ---
+  if (loading) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] animate-pulse font-serif tracking-widest uppercase">
+          Loading Gaddi Collection...
+        </div>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (error) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] font-serif">
+          {error} <br />{" "}
+          <span className="text-xs opacity-50">
+            Check connection to backend
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER ---
   return (
     <section
       ref={containerRef}
@@ -103,7 +205,7 @@ export default function Gaddi({ onBack }: GaddiProps) {
         <div className="flex w-full overflow-hidden">
           {/* Track contains two distinct sets of items for looping */}
           <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
-            {/* Set 1 - Added flex-shrink-0 to prevent overlapping */}
+            {/* Set 1 */}
             <div className="flex items-center gap-16 px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (
                 <span
@@ -152,7 +254,6 @@ export default function Gaddi({ onBack }: GaddiProps) {
       <div className="max-w-7xl mx-auto px-6 md:px-12 py-12 min-h-full flex flex-col pt-24 relative z-10">
         {/* --- HEADER --- */}
         <div className="text-center mb-16 space-y-4">
-          {/* Removed Golden Line and Collection Text */}
           <h1 className="text-6xl md:text-8xl font-serif leading-[0.9] text-[#371E10]">
             Gaddi Box
           </h1>
@@ -177,8 +278,9 @@ export default function Gaddi({ onBack }: GaddiProps) {
               >
                 {/* Image Card */}
                 <div className="relative aspect-[4/3] overflow-hidden rounded-lg mb-4 bg-[#E5DACE] shadow-inner">
+                  {/* --- GOOGLE DRIVE HELPER APPLIED --- */}
                   <Image
-                    src={item.image}
+                    src={getGoogleDriveImage(item.image)}
                     alt={item.title}
                     fill
                     className="object-cover transition-transform duration-1000 group-hover:scale-110"

@@ -1,13 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { coinData, CoinItem } from "@/data/coindata";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
 
+// --- CONFIGURATION ---
 const ITEMS_PER_PAGE = 8;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
+const API_URL = "https://craftology-backend.onrender.com/api/coin";
 
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -17,15 +19,48 @@ const COLORS = {
   WHITE: "#FFFFFF",
 };
 
+// --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
+// Converts "https://drive.google.com/file/d/ID/view" -> "https://drive.google.com/uc?export=view&id=ID"
+const getGoogleDriveImage = (url: string) => {
+  if (!url) return "/placeholder.jpg"; // Fallback image if empty
+  if (!url.includes("drive.google.com")) return url; // Return as-is if not a Drive link
+
+  // Extract ID
+  const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
+  const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  return url;
+};
+
+// --- INTERFACES ---
+export interface CoinItem {
+  _id?: string;
+  id?: string | number;
+  title: string;
+  price: number;
+  image: string;
+  description?: string;
+  // These properties are required by the Modal component
+  tags: string[];
+  insta_reel?: string;
+  video_link?: string;
+}
+
 interface CoinProps {
   onBack?: () => void;
 }
 
 export default function Coin({ onBack }: CoinProps) {
   // --- STATE ---
+  const [data, setData] = useState<CoinItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<CoinItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- REFS ---
@@ -33,33 +68,71 @@ export default function Coin({ onBack }: CoinProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const marqueeTrackRef = useRef<HTMLDivElement>(null);
 
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error("Failed to fetch data");
+        }
+        const jsonData = await response.json();
+
+        // Format data to ensure compatibility with the Modal
+        const formattedData = jsonData.map((item: any) => ({
+          ...item,
+          id: item.id || item._id, // Handle MongoDB _id
+          // Ensure tags exist (Coin items might not have them, but Modal needs the array)
+          tags: item.tags || [],
+          // Ensure video fields exist as empty strings if missing in DB
+          insta_reel: item.insta_reel || "",
+          video_link: item.video_link || "",
+          description: item.description || "",
+          // Ensure image exists
+          image: item.image || "",
+        }));
+
+        setData(formattedData);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load coins.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // --- PAGINATION LOGIC ---
-  const totalPages = Math.ceil(coinData.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = coinData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const currentItems = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // --- ANIMATIONS ---
 
   // 1. Grid Entrance
   useEffect(() => {
-    if (gridRef.current) {
+    if (!loading && gridRef.current && currentItems.length > 0) {
       gsap.fromTo(
         gridRef.current.children,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: "power3.out" },
       );
     }
-  }, [currentItems]);
+  }, [currentItems, loading]);
 
   // 2. Marquee Animation
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.to(marqueeTrackRef.current, {
-        xPercent: -50,
-        repeat: -1,
-        duration: 40,
-        ease: "linear",
-      });
+      if (marqueeTrackRef.current) {
+        gsap.to(marqueeTrackRef.current, {
+          xPercent: -50,
+          repeat: -1,
+          duration: 40,
+          ease: "linear",
+        });
+      }
     });
     return () => ctx.revert();
   }, []);
@@ -72,10 +145,40 @@ export default function Coin({ onBack }: CoinProps) {
   };
 
   const openModal = (product: CoinItem) => {
-    // Add empty tags array since Coin items don't have tags, but Modal expects them
-    setSelectedProduct({ ...product, tags: [] });
+    setSelectedProduct(product);
     setIsModalOpen(true);
   };
+
+  // --- LOADING STATE ---
+  if (loading) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] animate-pulse font-serif tracking-widest uppercase">
+          Loading Coin Collection...
+        </div>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (error) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] font-serif">
+          {error} <br />{" "}
+          <span className="text-xs opacity-50">
+            Check connection to backend
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section
@@ -101,7 +204,10 @@ export default function Coin({ onBack }: CoinProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
+          <div
+            ref={marqueeTrackRef}
+            className="flex whitespace-nowrap min-w-full"
+          >
             {/* Set 1 */}
             <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -163,7 +269,6 @@ export default function Coin({ onBack }: CoinProps) {
         {/* --- PRODUCT GRID --- */}
         <div
           ref={gridRef}
-          // Changed grid-cols-1 to grid-cols-2 for mobile
           className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-20 min-h-[400px]"
         >
           {currentItems.length > 0 ? (
@@ -176,8 +281,9 @@ export default function Coin({ onBack }: CoinProps) {
               >
                 {/* Image Card */}
                 <div className="relative aspect-[4/3] overflow-hidden rounded-lg mb-3 md:mb-4 bg-[#E5DACE] shadow-inner">
+                  {/* --- GOOGLE DRIVE HELPER APPLIED HERE --- */}
                   <Image
-                    src={item.image}
+                    src={getGoogleDriveImage(item.image)}
                     alt={item.title}
                     fill
                     className="object-cover transition-transform duration-1000 group-hover:scale-110"
