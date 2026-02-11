@@ -10,7 +10,7 @@ import Modal from "@/components/Modal";
 const ITEMS_PER_PAGE = 8;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
 // Endpoint for Scrapbook products
-const API_URL = "http://localhost:5000/api/scrapbooks";
+const API_URL = "https://craftology-backend.onrender.com/api/scrapbook";
 
 const COLORS = {
   LINEN: "#F9F0EB",
