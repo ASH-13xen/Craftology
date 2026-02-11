@@ -122,16 +122,21 @@ export default function Coin({ onBack }: CoinProps) {
     }
   }, [currentItems, loading]);
 
-  // 2. Marquee Animation
+  // 2. Marquee Animation (FIXED)
   useEffect(() => {
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
-        gsap.to(marqueeTrackRef.current, {
-          xPercent: -50,
-          repeat: -1,
-          duration: 40,
-          ease: "linear",
-        });
+        // Changed to fromTo to ensure consistent starting position
+        gsap.fromTo(
+          marqueeTrackRef.current,
+          { xPercent: 0 },
+          {
+            xPercent: -50,
+            repeat: -1,
+            duration: 40,
+            ease: "linear",
+          },
+        );
       }
     });
     return () => ctx.revert();
@@ -204,7 +209,8 @@ export default function Coin({ onBack }: CoinProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
+          {/* Added w-max to ensure width is calculated based on content, not viewport */}
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
             {/* Set 1 */}
             <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (
