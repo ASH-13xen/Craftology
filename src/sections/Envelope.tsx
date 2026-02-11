@@ -181,14 +181,12 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     }
   }, [isFilterOpen]);
 
-  // --- MARQUEE ANIMATION (FIXED) ---
+  // --- MARQUEE ANIMATION ---
   useEffect(() => {
-    // 1. Wait for loading to finish so elements exist
     if (loading) return;
 
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
-        // 2. Use fromTo for consistent start position
         gsap.fromTo(
           marqueeTrackRef.current,
           { xPercent: 0 },
@@ -202,7 +200,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
       }
     });
     return () => ctx.revert();
-  }, [loading]); // 3. Re-run when loading finishes
+  }, [loading]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -220,6 +218,32 @@ export default function Envelope({ onBack }: EnvelopeProps) {
   const openModal = (product: EnvelopeItem) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
+  };
+
+  // --- PAGINATION HELPER ---
+  // Calculates which pages to show (sliding window of 4)
+  const getVisiblePages = () => {
+    const maxVisible = 4;
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    // Determine start page based on current page
+    let start = currentPage - 1;
+    if (start < 1) start = 1;
+
+    // Adjust if end goes out of bounds
+    let end = start + maxVisible - 1;
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
   };
 
   // --- LOADING / ERROR UI ---
@@ -277,7 +301,6 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          {/* Added w-max to ensure correct loop calculation */}
           <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
             {[1, 2].map((set) => (
               <div
@@ -418,6 +441,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         {/* Product Grid */}
         <div
           ref={gridRef}
+          // ENSURED grid-cols-2 on mobile (default)
           className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-20 min-h-[400px]"
         >
           {currentItems.length > 0 ? (
@@ -465,7 +489,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-auto flex justify-center items-center gap-3">
+          <div className="mt-auto flex justify-center items-center gap-2 md:gap-3">
             <button
               disabled={currentPage === 1}
               onClick={() => handlePageChange(currentPage - 1)}
@@ -473,15 +497,22 @@ export default function Envelope({ onBack }: EnvelopeProps) {
             >
               ←
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+
+            {/* PAGINATION LOGIC CHANGE: Uses getVisiblePages() instead of mapping all */}
+            {getVisiblePages().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${currentPage === page ? "bg-[#371E10] text-[#F9F0EB] shadow-lg scale-105" : "text-[#371E10] hover:bg-[#371E10]/5"}`}
+                className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${
+                  currentPage === page
+                    ? "bg-[#371E10] text-[#F9F0EB] shadow-lg scale-105"
+                    : "text-[#371E10] hover:bg-[#371E10]/5"
+                }`}
               >
                 {page < 10 ? `0${page}` : page}
               </button>
             ))}
+
             <button
               disabled={currentPage === totalPages}
               onClick={() => handlePageChange(currentPage + 1)}

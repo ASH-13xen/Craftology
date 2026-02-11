@@ -77,12 +77,11 @@ export default function Coin({ onBack }: CoinProps) {
         const jsonData = await response.json();
 
         // --- FIX: SAFE ARRAY EXTRACTION ---
-        // 1. Check if it is a raw array or wrapped in an object (e.g., .data)
         const itemsArray = Array.isArray(jsonData)
           ? jsonData
           : jsonData.data || jsonData.coins || [];
 
-        // 2. Format data
+        // Format data
         const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id, // Handle MongoDB _id
@@ -110,7 +109,6 @@ export default function Coin({ onBack }: CoinProps) {
   const currentItems = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // --- ANIMATIONS ---
-
   // 1. Grid Entrance
   useEffect(() => {
     if (!loading && gridRef.current && currentItems.length > 0) {
@@ -122,9 +120,8 @@ export default function Coin({ onBack }: CoinProps) {
     }
   }, [currentItems, loading]);
 
-  // 2. Marquee Animation (FIXED)
+  // 2. Marquee Animation
   useEffect(() => {
-    // CRITICAL FIX: Do not try to animate if elements don't exist yet
     if (loading) return;
 
     const ctx = gsap.context(() => {
@@ -142,7 +139,7 @@ export default function Coin({ onBack }: CoinProps) {
       }
     });
     return () => ctx.revert();
-  }, [loading]); // CRITICAL FIX: Re-run animation when loading finishes
+  }, [loading]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -154,6 +151,29 @@ export default function Coin({ onBack }: CoinProps) {
   const openModal = (product: CoinItem) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
+  };
+
+  // --- PAGINATION HELPER (Matches Envelope Logic) ---
+  const getVisiblePages = () => {
+    const maxVisible = 4;
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    let start = currentPage - 1;
+    if (start < 1) start = 1;
+
+    let end = start + maxVisible - 1;
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
   };
 
   // --- LOADING STATE ---
@@ -212,33 +232,23 @@ export default function Coin({ onBack }: CoinProps) {
       >
         <div className="flex w-full overflow-hidden">
           <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
-            {/* Set 1 */}
-            <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <span
-                  key={`a-${i}`}
-                  className="text-[#F9F0EB] text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
-                >
-                  <span>Tokens of Prosperity</span> •{" "}
-                  <span>Chat on WhatsApp to Order</span> •{" "}
-                  <span>Auspicious Gifting</span> •
-                </span>
-              ))}
-            </div>
-
-            {/* Set 2 - Clone */}
-            <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <span
-                  key={`b-${i}`}
-                  className="text-[#F9F0EB] text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
-                >
-                  <span>Tokens of Prosperity</span> •{" "}
-                  <span>Chat on WhatsApp to Order</span> •{" "}
-                  <span>Auspicious Gifting</span> •
-                </span>
-              ))}
-            </div>
+            {[1, 2].map((set) => (
+              <div
+                key={set}
+                className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0"
+              >
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <span
+                    key={`${set}-${i}`}
+                    className="text-[#F9F0EB] text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
+                  >
+                    <span>Tokens of Prosperity</span> •{" "}
+                    <span>Chat on WhatsApp to Order</span> •{" "}
+                    <span>Auspicious Gifting</span> •
+                  </span>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </a>
@@ -273,7 +283,7 @@ export default function Coin({ onBack }: CoinProps) {
         {/* --- PRODUCT GRID --- */}
         <div
           ref={gridRef}
-          className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-20 min-h-[400px]"
+          className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-20 min-h-[400px]"
         >
           {currentItems.length > 0 ? (
             currentItems.map((item) => (
@@ -284,7 +294,8 @@ export default function Coin({ onBack }: CoinProps) {
                 onClick={() => openModal(item)}
               >
                 {/* Image Card */}
-                <div className="relative aspect-[4/3] overflow-hidden rounded-lg mb-3 md:mb-4 bg-[#E5DACE] shadow-inner">
+                {/* UPDATED: Changed from aspect-[4/3] to aspect-[3/4] to match Envelope */}
+                <div className="relative aspect-[3/4] overflow-hidden rounded-lg mb-3 md:mb-4 bg-[#E5DACE] shadow-inner">
                   {/* --- GOOGLE DRIVE HELPER APPLIED HERE --- */}
                   <Image
                     src={getGoogleDriveImage(item.image)}
@@ -321,7 +332,7 @@ export default function Coin({ onBack }: CoinProps) {
 
         {/* --- PAGINATION --- */}
         {totalPages > 1 && (
-          <div className="mt-auto flex justify-center items-center gap-3">
+          <div className="mt-auto flex justify-center items-center gap-2 md:gap-3">
             <button
               disabled={currentPage === 1}
               onClick={() => handlePageChange(currentPage - 1)}
@@ -330,23 +341,20 @@ export default function Coin({ onBack }: CoinProps) {
               ←
             </button>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-              const isActive = currentPage === page;
-              const pageNum = page < 10 ? `0${page}` : page;
-              return (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${
-                    isActive
-                      ? "bg-[#371E10] text-[#F9F0EB] shadow-lg scale-105"
-                      : "text-[#371E10] hover:bg-[#371E10]/5"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
+            {/* UPDATED: Uses getVisiblePages to limit buttons on mobile */}
+            {getVisiblePages().map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${
+                  currentPage === page
+                    ? "bg-[#371E10] text-[#F9F0EB] shadow-lg scale-105"
+                    : "text-[#371E10] hover:bg-[#371E10]/5"
+                }`}
+              >
+                {page < 10 ? `0${page}` : page}
+              </button>
+            ))}
 
             <button
               disabled={currentPage === totalPages}

@@ -1,9 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
-// Removed import from data file
 import { getDirectDriveUrl } from "@/utils/driveHelper";
-// Theme Colors
+
 const COLORS = {
   LINEN: "#F9F0EB",
   CHAMPAGNE: "#F2E6D8",
@@ -11,7 +11,6 @@ const COLORS = {
   GOLD: "#CD9860",
 };
 
-// Define Interface locally to match the passing prop
 interface EnvelopeItem {
   _id?: string;
   id?: string | number;
@@ -34,23 +33,16 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // --- HELPER: GET MEDIA URL ---
-  // Returns the correct URL for the iframe (Insta > Video Link)
   const getMediaUrl = (item: EnvelopeItem) => {
-    // 1. Priority: Instagram Reel
     if (item.insta_reel && item.insta_reel.trim() !== "") {
       const cleanUrl = item.insta_reel.split("?")[0];
       return cleanUrl.endsWith("/") ? `${cleanUrl}embed` : `${cleanUrl}/embed`;
     }
 
-    // 2. Fallback: Video Link
     if (item.video_link && item.video_link.trim() !== "") {
-      // HANDLE GOOGLE DRIVE VIDEO
       if (item.video_link.includes("drive.google.com")) {
         return getDirectDriveUrl(item.video_link, "video");
       }
-
-      // Handle YouTube
       if (item.video_link.includes("youtube.com/watch?v=")) {
         const videoId = item.video_link.split("v=")[1]?.split("&")[0];
         return `https://www.youtube.com/embed/${videoId}`;
@@ -59,13 +51,11 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
         const videoId = item.video_link.split("youtu.be/")[1]?.split("?")[0];
         return `https://www.youtube.com/embed/${videoId}`;
       }
-
       return item.video_link;
     }
-
     return "";
   };
-  // Close on Escape key
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -74,27 +64,21 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
-  // GSAP Animation
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden"; // Lock scroll
-
-      // Animate Overlay
+      document.body.style.overflow = "hidden";
       gsap.to(overlayRef.current, {
         opacity: 1,
         duration: 0.3,
         ease: "power2.out",
       });
-
-      // Animate Modal Pop
       gsap.fromTo(
         modalRef.current,
         { opacity: 0, y: 50, scale: 0.95 },
         { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "back.out(1.2)" },
       );
     } else {
-      document.body.style.overflow = "auto"; // Unlock scroll
-
+      document.body.style.overflow = "auto";
       gsap.to(overlayRef.current, { opacity: 0, duration: 0.2 });
       gsap.to(modalRef.current, {
         opacity: 0,
@@ -110,7 +94,7 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
   const mediaSrc = getMediaUrl(product);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-8">
       {/* Backdrop */}
       <div
         ref={overlayRef}
@@ -121,19 +105,20 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
       {/* Modal Content */}
       <div
         ref={modalRef}
-        className="relative w-full max-w-5xl h-[85vh] bg-[#F9F0EB] rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row opacity-0"
+        // Reduced height to 80vh and width to 94% on mobile for a tighter look
+        className="relative w-[94%] max-w-5xl h-[80vh] md:h-[85vh] bg-[#F9F0EB] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row opacity-0"
         style={{ color: COLORS.ESPRESSO }}
       >
-        {/* Close Button */}
+        {/* Close Button - More compact on mobile */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-white/80 hover:bg-[#371E10] hover:text-white transition-colors border border-[#371E10]/10 shadow-lg"
+          className="absolute top-2.5 right-2.5 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white/90 hover:bg-[#371E10] hover:text-white transition-colors border border-[#371E10]/10 shadow-lg text-xs"
         >
           ✕
         </button>
 
-        {/* LEFT SIDE: Media (Insta or Video) */}
-        <div className="w-full md:w-1/2 h-1/2 md:h-full bg-black flex items-center justify-center relative">
+        {/* LEFT SIDE: Media - Increased height to 55% on mobile */}
+        <div className="w-full md:w-1/2 h-[55%] md:h-full bg-black flex items-center justify-center relative shrink-0">
           {mediaSrc ? (
             <iframe
               src={mediaSrc}
@@ -144,7 +129,6 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
               allowFullScreen={true}
             ></iframe>
           ) : (
-            // Fallback if no video exists (show Image)
             <img
               src={product.image}
               alt={product.title}
@@ -153,28 +137,30 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
           )}
         </div>
 
-        {/* RIGHT SIDE: Product Details */}
-        <div className="w-full md:w-1/2 h-1/2 md:h-full p-8 md:p-12 overflow-y-auto flex flex-col relative">
-          <h2 className="text-4xl md:text-5xl font-serif mb-2 leading-[0.9]">
-            {product.title}
-          </h2>
+        {/* RIGHT SIDE: Product Details - Reduced padding and text sizes */}
+        <div className="w-full md:w-1/2 flex-1 md:h-full p-4 sm:p-8 md:p-12 overflow-y-auto flex flex-col">
+          <div className="mb-3 md:mb-0">
+            <h2 className="text-xl md:text-5xl font-serif mb-1 leading-tight md:leading-[0.9]">
+              {product.title}
+            </h2>
+            <p className="font-mono text-sm md:text-xl mb-3 md:mb-8 opacity-100 text-[#CD9860]">
+              ₹{product.price}
+            </p>
+          </div>
 
-          <p className="font-mono text-xl mb-8 opacity-100 text-[#CD9860]">
-            ₹{product.price}
-          </p>
+          <div className="hidden md:block w-12 h-[1px] bg-[#371E10]/20 mb-8"></div>
+          <div className="block md:hidden w-full h-[1px] bg-[#371E10]/10 mb-4"></div>
 
-          <div className="w-12 h-[1px] bg-[#371E10]/20 mb-8"></div>
-
-          <div className="mb-8">
-            <h3 className="font-bold text-xs tracking-[0.2em] mb-3 uppercase opacity-60">
+          <div className="mb-4 md:mb-8">
+            <h3 className="font-bold text-[9px] md:text-xs tracking-[0.2em] mb-1.5 md:mb-3 uppercase opacity-60">
               Description
             </h3>
-            <p className="text-lg leading-relaxed opacity-80 font-serif font-light">
+            <p className="text-[13px] md:text-lg leading-relaxed opacity-80 font-serif font-light">
               {product.description ? (
                 product.description
               ) : (
                 <>
-                  This handcrafted envelope adds a touch of elegance to your{" "}
+                  This handcrafted item adds a touch of elegance to your{" "}
                   {product.tags && product.tags.length > 0
                     ? product.tags[0]
                     : "special occasion"}
@@ -185,7 +171,7 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
             </p>
           </div>
 
-          <div className="mt-auto pt-6">
+          <div className="mt-auto pt-2">
             <button
               onClick={() =>
                 window.open(
@@ -193,7 +179,7 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
                   "_blank",
                 )
               }
-              className="w-full py-4 bg-[#371E10] text-[#F9F0EB] font-bold text-xs tracking-[0.2em] uppercase hover:bg-[#CD9860] transition-colors rounded-sm"
+              className="w-full py-3 md:py-4 bg-[#371E10] text-[#F9F0EB] font-bold text-[10px] md:text-xs tracking-[0.2em] uppercase hover:bg-[#CD9860] transition-colors rounded-lg md:rounded-sm shadow-md"
             >
               Order on WhatsApp
             </button>

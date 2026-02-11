@@ -182,7 +182,7 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
           {/* Audio Toggle */}
           <button
             onClick={toggleAudio}
-            className="absolute bottom-8 right-8 z-30 p-3 rounded-full border border-white/30 bg-black/20 backdrop-blur-md text-white hover:bg-white/20 transition-all cursor-pointer"
+            className="absolute bottom-3 right-2 md:bottom-8 md:right-8 z-30 p-3 rounded-full border border-white/30 bg-black/20 backdrop-blur-md text-white hover:bg-white/20 transition-all cursor-pointer"
           >
             {isMuted ? (
               <svg
