@@ -80,8 +80,14 @@ export default function Resin({ onBack }: ResinProps) {
         }
         const jsonData = await response.json();
 
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        // Checks if jsonData is an array, or looks inside .data or .resins
+        const itemsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.resins || [];
+
         // Format data
-        const formattedData = jsonData.map((item: any) => ({
+        const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id,
           tags: item.tags || [], // Ensure tags exist
@@ -202,10 +208,7 @@ export default function Resin({ onBack }: ResinProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div
-            ref={marqueeTrackRef}
-            className="flex whitespace-nowrap min-w-full"
-          >
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
             {/* Set 1 */}
             <div className="flex items-center gap-16 px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (

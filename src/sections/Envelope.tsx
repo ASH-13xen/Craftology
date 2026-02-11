@@ -274,10 +274,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div
-            ref={marqueeTrackRef}
-            className="flex whitespace-nowrap min-w-full"
-          >
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
             {[1, 2].map((set) => (
               <div
                 key={set}

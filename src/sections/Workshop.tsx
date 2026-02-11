@@ -68,10 +68,15 @@ export default function Workshop() {
         }
         const jsonData = await response.json();
 
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        // 1. Check if raw array, or look inside .data / .workshops
+        const workshopsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.workshops || [];
+
         // Logic: Get the MOST RECENT workshop (Last item in the array)
-        if (Array.isArray(jsonData) && jsonData.length > 0) {
-          // CHANGED: Selected the last index instead of [0]
-          const item = jsonData[jsonData.length - 1];
+        if (workshopsArray.length > 0) {
+          const item = workshopsArray[workshopsArray.length - 1];
 
           // Map backend fields to UI fields
           const formattedWorkshop: WorkshopItem = {

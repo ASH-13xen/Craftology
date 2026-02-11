@@ -80,8 +80,14 @@ export default function Gaddi({ onBack }: GaddiProps) {
         }
         const jsonData = await response.json();
 
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        // Checks if jsonData is an array, or looks inside .data or .gaddis
+        const itemsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.gaddis || [];
+
         // Format data
-        const formattedData = jsonData.map((item: any) => ({
+        const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id,
           tags: item.tags || [], // Ensure tags exist for Modal

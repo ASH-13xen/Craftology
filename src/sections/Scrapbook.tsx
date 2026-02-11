@@ -80,8 +80,14 @@ export default function Scrapbook({ onBack }: ScrapbookProps) {
         }
         const jsonData = await response.json();
 
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        // Checks if jsonData is an array, or looks inside .data or .scrapbooks
+        const itemsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.scrapbooks || [];
+
         // Format data
-        const formattedData = jsonData.map((item: any) => ({
+        const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id,
           tags: item.tags || [], // Ensure tags exist
@@ -203,10 +209,11 @@ export default function Scrapbook({ onBack }: ScrapbookProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div
-            ref={marqueeTrackRef}
-            className="flex whitespace-nowrap min-w-full"
-          >
+          {/* FIX: Removed 'min-w-full' from the className below.
+              This ensures the div width exactly matches the content width, 
+              allowing xPercent: -50 to calculate the loop correctly.
+          */}
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
             {/* Set 1 */}
             <div className="flex items-center gap-16 px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (

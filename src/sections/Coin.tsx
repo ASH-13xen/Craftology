@@ -20,12 +20,10 @@ const COLORS = {
 };
 
 // --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
-// Converts "https://drive.google.com/file/d/ID/view" -> "https://drive.google.com/uc?export=view&id=ID"
 const getGoogleDriveImage = (url: string) => {
-  if (!url) return "/placeholder.jpg"; // Fallback image if empty
-  if (!url.includes("drive.google.com")) return url; // Return as-is if not a Drive link
+  if (!url) return "/placeholder.jpg";
+  if (!url.includes("drive.google.com")) return url;
 
-  // Extract ID
   const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
   const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
 
@@ -43,7 +41,6 @@ export interface CoinItem {
   price: number;
   image: string;
   description?: string;
-  // These properties are required by the Modal component
   tags: string[];
   insta_reel?: string;
   video_link?: string;
@@ -79,17 +76,20 @@ export default function Coin({ onBack }: CoinProps) {
         }
         const jsonData = await response.json();
 
-        // Format data to ensure compatibility with the Modal
-        const formattedData = jsonData.map((item: any) => ({
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        // 1. Check if it is a raw array or wrapped in an object (e.g., .data)
+        const itemsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.coins || [];
+
+        // 2. Format data
+        const formattedData = itemsArray.map((item: any) => ({
           ...item,
           id: item.id || item._id, // Handle MongoDB _id
-          // Ensure tags exist (Coin items might not have them, but Modal needs the array)
           tags: item.tags || [],
-          // Ensure video fields exist as empty strings if missing in DB
           insta_reel: item.insta_reel || "",
           video_link: item.video_link || "",
           description: item.description || "",
-          // Ensure image exists
           image: item.image || "",
         }));
 
@@ -204,10 +204,7 @@ export default function Coin({ onBack }: CoinProps) {
         style={{ backgroundColor: COLORS.ESPRESSO }}
       >
         <div className="flex w-full overflow-hidden">
-          <div
-            ref={marqueeTrackRef}
-            className="flex whitespace-nowrap min-w-full"
-          >
+          <div ref={marqueeTrackRef} className="flex whitespace-nowrap">
             {/* Set 1 */}
             <div className="flex items-center gap-8 md:gap-16 px-4 md:px-8 flex-shrink-0">
               {Array.from({ length: 4 }).map((_, i) => (
