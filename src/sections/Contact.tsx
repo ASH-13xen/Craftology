@@ -107,11 +107,11 @@ export default function Contact() {
                 Visit The Studio
               </h4>
               <p className="font-serif text-base md:text-lg leading-snug">
-                12, Craftology Lane,
+                Walfort City,
                 <br />
-                Hauz Khas Village,
+                Bhatagaon,
                 <br />
-                New Delhi - 110016
+                Raipur
               </p>
             </div>
 
@@ -121,23 +121,23 @@ export default function Contact() {
                 Direct Contact
               </h4>
               <a
-                href="tel:+919876543210"
+                href="tel:+919303410393"
                 className="font-mono text-sm md:text-base hover:text-[#CD9860] transition-colors w-fit"
               >
-                +91 98765 43210
+                +91 93034 10393
               </a>
               <a
-                href="mailto:hello@craftology.in"
+                href="mailto:hello@email.com"
                 className="font-mono text-sm md:text-base hover:text-[#CD9860] transition-colors w-fit"
               >
-                hello@craftology.in
+                hello@email.com
               </a>
             </div>
           </div>
         </div>
 
         {/* --- Social Icons Footer (SVG Icons) --- */}
-        <div className="mt-4 md:mt-12 flex gap-6 items-center">
+        <div className="mt-4 md:mt-12 flex gap-6 items-center flex-wrap">
           {/* Instagram */}
           <a
             href="#"
@@ -202,16 +202,38 @@ export default function Contact() {
               strokeLinejoin="round"
               className="text-[#371E10] group-hover:text-[#CD9860] transition-colors"
             >
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <path d="M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0" />
+              <path d="M10.72 6.12a6 6 0 1 1 2.56 0" />
+              <path d="M12 21.5v-8" />
             </svg>
-            {/* Note: Standard Pinterest SVG path varies, using a generic placeholder or you can use: */}
-            {/* <path d="M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0" /> ... */}
+          </a>
+
+          {/* YouTube (Added) */}
+          <a
+            href="#"
+            className="group transition-transform hover:scale-110"
+            aria-label="YouTube"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-[#371E10] group-hover:text-[#CD9860] transition-colors"
+            >
+              <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+              <path d="m10 15 5-3-5-3z" />
+            </svg>
           </a>
 
           {/* WhatsApp */}
           <a
-            href="https://wa.me/919876543210"
+            href="https://wa.me/919303410393"
             target="_blank"
             rel="noopener noreferrer"
             className="group transition-transform hover:scale-110"

@@ -2,9 +2,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import Image from "next/image";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
+import ProductCard, { CoinItem } from "@/components/ProductCard";
 
 // --- CONFIGURATION ---
 const ITEMS_PER_PAGE = 8;
@@ -20,33 +20,9 @@ const COLORS = {
   WHITE: "#FFFFFF",
 };
 
-// --- HELPER: CONVERT DRIVE LINKS TO IMAGE SRC ---
-const getGoogleDriveImage = (url: string) => {
-  if (!url) return "/placeholder.jpg";
-  if (!url.includes("drive.google.com")) return url;
-
-  const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
-  const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
-
-  if (fileId) {
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
-  }
-  return url;
-};
-
 // --- INTERFACES ---
-export interface ScrapbookItem {
-  _id?: string;
-  id?: string | number;
-  title: string;
-  price: number;
-  image: string;
-  description?: string;
-  // Modal requirements
-  tags: string[];
-  insta_reel?: string;
-  video_link?: string;
-}
+// We alias ScrapbookItem to CoinItem as they share the exact same structure for the card
+export type ScrapbookItem = CoinItem;
 
 interface ScrapbookProps {
   onBack?: () => void;
@@ -304,38 +280,7 @@ export default function Scrapbook({ onBack }: ScrapbookProps) {
         >
           {currentItems.length > 0 ? (
             currentItems.map((item) => (
-              <div
-                key={item.id}
-                className="group flex flex-col cursor-pointer p-3 md:p-4 rounded-xl transition-all duration-500 hover:-translate-y-2 hover:bg-white"
-                style={{ border: `1px solid ${COLORS.ESPRESSO}10` }}
-                onClick={() => openModal(item)}
-              >
-                {/* Image Card */}
-                {/* Note: Scrapbook already uses [3/4] aspect ratio, which is correct */}
-                <div className="relative aspect-[3/4] overflow-hidden rounded-lg mb-3 md:mb-4 bg-[#E5DACE] shadow-inner">
-                  {/* --- GOOGLE DRIVE HELPER APPLIED --- */}
-                  <Image
-                    src={getGoogleDriveImage(item.image)}
-                    alt={item.title}
-                    fill
-                    className="object-cover transition-transform duration-1000 group-hover:scale-110"
-                  />
-                  {/* Price Badge */}
-                  <div className="absolute top-2 right-2 bg-[#F9F0EB]/90 backdrop-blur-md px-2 py-1 rounded text-[9px] md:text-[10px] font-bold text-[#371E10] shadow-sm border border-[#371E10]/10">
-                    ₹{item.price}
-                  </div>
-                </div>
-
-                {/* Info */}
-                <div className="flex flex-col gap-1 text-center">
-                  <h3 className="text-lg md:text-xl font-serif text-[#371E10] leading-tight group-hover:text-[#CD9860] transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="text-[9px] md:text-[10px] uppercase tracking-wider opacity-60 line-clamp-1">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
+              <ProductCard key={item.id} item={item} onClick={openModal} />
             ))
           ) : (
             <div className="col-span-full flex flex-col items-center justify-center py-10 opacity-50 space-y-4">
