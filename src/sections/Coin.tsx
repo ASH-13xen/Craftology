@@ -1,15 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
 import ProductCard, { CoinItem } from "@/components/ProductCard";
 
 // --- CONFIGURATION ---
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 12;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
-const API_URL = "https://craftology-backend.onrender.com/api/coin";
 
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -21,14 +19,12 @@ const COLORS = {
 
 interface CoinProps {
   onBack?: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any[]; // Accepts raw data from Server Component
 }
 
-export default function Coin({ onBack }: CoinProps) {
+export default function Coin({ onBack, data: serverData }: CoinProps) {
   // --- STATE ---
-  const [data, setData] = useState<CoinItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<CoinItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,65 +34,47 @@ export default function Coin({ onBack }: CoinProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const marqueeTrackRef = useRef<HTMLDivElement>(null);
 
-  // --- FETCH DATA ---
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(API_URL);
-        if (!response.ok) {
-          throw new Error("Failed to fetch data");
-        }
-        const jsonData = await response.json();
+  // --- DATA SANITIZATION ---
+  // Process server data to match UI requirements
+  const formattedData: CoinItem[] = useMemo(() => {
+    if (!Array.isArray(serverData)) return [];
 
-        // --- FIX: SAFE ARRAY EXTRACTION ---
-        const itemsArray = Array.isArray(jsonData)
-          ? jsonData
-          : jsonData.data || jsonData.coins || [];
-
-        // Format data
-        const formattedData = itemsArray.map((item: any) => ({
-          ...item,
-          id: item.id || item._id, // Handle MongoDB _id
-          tags: item.tags || [],
-          insta_reel: item.insta_reel || "",
-          video_link: item.video_link || "",
-          description: item.description || "",
-          image: item.image || "",
-        }));
-
-        setData(formattedData);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load coins.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return serverData.map((item: any) => ({
+      ...item,
+      id: item.id || item._id, // Handle MongoDB _id
+      tags: item.tags || [],
+      insta_reel: item.insta_reel || "",
+      video_link: item.video_link || "",
+      description: item.description || "",
+      image: item.image || "",
+      title: item.title || "Untitled Coin",
+      price: item.price || 0,
+    }));
+  }, [serverData]);
 
   // --- PAGINATION LOGIC ---
-  const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(formattedData.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const currentItems = formattedData.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
 
   // --- ANIMATIONS ---
   // 1. Grid Entrance
   useEffect(() => {
-    if (!loading && gridRef.current && currentItems.length > 0) {
+    if (gridRef.current && currentItems.length > 0) {
       gsap.fromTo(
         gridRef.current.children,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: "power3.out" },
       );
     }
-  }, [currentItems, loading]);
+  }, [currentItems]);
 
   // 2. Marquee Animation
   useEffect(() => {
-    if (loading) return;
-
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
         gsap.fromTo(
@@ -112,7 +90,7 @@ export default function Coin({ onBack }: CoinProps) {
       }
     });
     return () => ctx.revert();
-  }, [loading]);
+  }, []);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -126,7 +104,7 @@ export default function Coin({ onBack }: CoinProps) {
     setIsModalOpen(true);
   };
 
-  // --- PAGINATION HELPER (Matches Envelope Logic) ---
+  // --- PAGINATION HELPER ---
   const getVisiblePages = () => {
     const maxVisible = 4;
     if (totalPages <= maxVisible) {
@@ -148,37 +126,6 @@ export default function Coin({ onBack }: CoinProps) {
     }
     return pages;
   };
-
-  // --- LOADING STATE ---
-  if (loading) {
-    return (
-      <div
-        className="flex h-screen w-full items-center justify-center"
-        style={{ backgroundColor: COLORS.LINEN }}
-      >
-        <div className="text-[#371E10] animate-pulse font-serif tracking-widest uppercase">
-          Loading Coin Collection...
-        </div>
-      </div>
-    );
-  }
-
-  // --- ERROR STATE ---
-  if (error) {
-    return (
-      <div
-        className="flex h-screen w-full items-center justify-center"
-        style={{ backgroundColor: COLORS.LINEN }}
-      >
-        <div className="text-[#371E10] font-serif">
-          {error} <br />{" "}
-          <span className="text-xs opacity-50">
-            Check connection to backend
-          </span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <section
