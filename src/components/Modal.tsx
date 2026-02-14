@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
-import React, { useEffect, useRef } from "react";
+
+import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { getDirectDriveUrl } from "@/utils/driveHelper";
 
@@ -17,6 +18,7 @@ interface EnvelopeItem {
   title: string;
   price: number;
   image: string;
+  images?: string[]; // Added to support carousel
   tags: string[];
   insta_reel?: string;
   video_link?: string;
@@ -32,13 +34,17 @@ interface ModalProps {
 export default function Modal({ isOpen, onClose, product }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const getMediaUrl = (item: EnvelopeItem) => {
-    if (item.insta_reel && item.insta_reel.trim() !== "") {
-      const cleanUrl = item.insta_reel.split("?")[0];
-      return cleanUrl.endsWith("/") ? `${cleanUrl}embed` : `${cleanUrl}/embed`;
+  // Reset carousel index when product changes
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentImageIndex(0);
     }
+  }, [isOpen, product]);
 
+  // 1. Logic to get Video URL (Priority 1)
+  const getVideoUrl = (item: EnvelopeItem) => {
     if (item.video_link && item.video_link.trim() !== "") {
       if (item.video_link.includes("drive.google.com")) {
         return getDirectDriveUrl(item.video_link, "video");
@@ -51,9 +57,36 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
         const videoId = item.video_link.split("youtu.be/")[1]?.split("?")[0];
         return `https://www.youtube.com/embed/${videoId}`;
       }
-      return item.video_link;
+      return item.video_link; // direct link
     }
-    return "";
+    return null;
+  };
+
+  // 2. Logic to get Instagram Reel (Priority 2)
+  const getInstaUrl = (item: EnvelopeItem) => {
+    if (item.insta_reel && item.insta_reel.trim() !== "") {
+      const cleanUrl = item.insta_reel.split("?")[0];
+      return cleanUrl.endsWith("/") ? `${cleanUrl}embed` : `${cleanUrl}/embed`;
+    }
+    return null;
+  };
+
+  // 3. Logic to get Images for Carousel (Priority 3)
+  const getImages = (item: EnvelopeItem) => {
+    if (item.images && item.images.length > 0) {
+      return item.images;
+    }
+    return [item.image]; // Fallback to single image as array
+  };
+
+  const handleNextImage = (e: React.MouseEvent, total: number) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % total);
+  };
+
+  const handlePrevImage = (e: React.MouseEvent, total: number) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === 0 ? total - 1 : prev - 1));
   };
 
   useEffect(() => {
@@ -91,7 +124,10 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
 
   if (!isOpen || !product) return null;
 
-  const mediaSrc = getMediaUrl(product);
+  // Determine what to show based on priority
+  const videoSrc = getVideoUrl(product);
+  const instaSrc = !videoSrc ? getInstaUrl(product) : null;
+  const productImages = !videoSrc && !instaSrc ? getImages(product) : [];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-8">
@@ -105,11 +141,10 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
       {/* Modal Content */}
       <div
         ref={modalRef}
-        // Reduced height to 80vh and width to 94% on mobile for a tighter look
         className="relative w-[94%] max-w-5xl h-[80vh] md:h-[85vh] bg-[#F9F0EB] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row opacity-0"
         style={{ color: COLORS.ESPRESSO }}
       >
-        {/* Close Button - More compact on mobile */}
+        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-2.5 right-2.5 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white/90 hover:bg-[#371E10] hover:text-white transition-colors border border-[#371E10]/10 shadow-lg text-xs"
@@ -117,11 +152,22 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
           ✕
         </button>
 
-        {/* LEFT SIDE: Media - Increased height to 55% on mobile */}
-        <div className="w-full md:w-1/2 h-[55%] md:h-full bg-black flex items-center justify-center relative shrink-0">
-          {mediaSrc ? (
+        {/* LEFT SIDE: Media Display */}
+        <div className="w-full md:w-1/2 h-[55%] md:h-full bg-black flex items-center justify-center relative shrink-0 group">
+          {videoSrc ? (
+            // Priority 1: Video
             <iframe
-              src={mediaSrc}
+              src={videoSrc}
+              className="w-full h-full object-cover"
+              frameBorder="0"
+              scrolling="no"
+              allowTransparency={true}
+              allowFullScreen={true}
+            ></iframe>
+          ) : instaSrc ? (
+            // Priority 2: Instagram Reel
+            <iframe
+              src={instaSrc}
               className="w-full h-full object-cover"
               frameBorder="0"
               scrolling="no"
@@ -129,15 +175,49 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
               allowFullScreen={true}
             ></iframe>
           ) : (
-            <img
-              src={product.image}
-              alt={product.title}
-              className="w-full h-full object-cover opacity-80"
-            />
+            // Priority 3: Image Carousel
+            <>
+              <img
+                src={productImages[currentImageIndex]}
+                alt={product.title}
+                className="w-full h-full object-cover opacity-80"
+              />
+
+              {/* Carousel Controls - Only show if > 1 image */}
+              {productImages.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => handlePrevImage(e, productImages.length)}
+                    className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={(e) => handleNextImage(e, productImages.length)}
+                    className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    →
+                  </button>
+                  {/* Dots Indicator */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {productImages.map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                          idx === currentImageIndex
+                            ? "bg-white scale-110"
+                            : "bg-white/40"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
 
-        {/* RIGHT SIDE: Product Details - Reduced padding and text sizes */}
+        {/* RIGHT SIDE: Product Details */}
         <div className="w-full md:w-1/2 flex-1 md:h-full p-4 sm:p-8 md:p-12 overflow-y-auto flex flex-col">
           <div className="mb-3 md:mb-0">
             <h2 className="text-xl md:text-5xl font-serif mb-1 leading-tight md:leading-[0.9]">
