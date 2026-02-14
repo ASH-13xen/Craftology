@@ -14,7 +14,7 @@ const COLORS = {
 interface HeroProps {
   onExplore: () => void;
   onViewThemes: () => void;
-  isActive: boolean; // <--- 1. Added Prop
+  isActive: boolean;
 }
 
 export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
@@ -36,16 +36,14 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
     }
   };
 
-  // --- 2. NEW LOGIC: Play/Pause based on Active State ---
+  // --- NEW LOGIC: Play/Pause based on Active State ---
   useEffect(() => {
     if (actualVideoRef.current) {
       if (isActive) {
-        // If we are on the Home view, play the video
         actualVideoRef.current.play().catch((e) => {
           console.log("Autoplay prevented or interrupted", e);
         });
       } else {
-        // If we navigated away, pause the video
         actualVideoRef.current.pause();
       }
     }
@@ -227,11 +225,13 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
           <div ref={tagsRef}></div>
 
           {/* Main Center Block */}
-          <div className="flex flex-col items-start md:items-start space-y-6 md:space-y-6">
+          <div className="flex flex-col items-start md:items-start h-full md:h-auto">
             {/* TEXT SECTION */}
             <div
               ref={textRef}
-              className="text-center md:text-left space-y-4 md:space-y-5 md:top-5"
+              // UPDATED: Used flex-col + h-[75vh] on mobile to control spacing.
+              // Added md:block and md:h-auto to revert to original desktop behavior.
+              className="text-center md:text-left flex flex-col h-[75vh] md:h-auto md:block space-y-4 md:space-y-5 md:top-5"
             >
               <h2
                 className="text-[40px] md:text-8xl font-serif font-light tracking-tighter leading-[0.9]"
@@ -243,7 +243,8 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
               </h2>
 
               <p
-                className="max-w-md pt-42 font-semibold font-serif tracking-tighter md:pt-0 text-sm md:text-base leading-relaxed"
+                // UPDATED: Removed 'pt-42'. Added 'mt-auto' to push text to bottom on mobile.
+                className="max-w-md mt-auto font-semibold font-serif tracking-tighter md:pt-0 text-sm md:text-base leading-relaxed"
                 style={{ color: COLORS.ESPRESSO }}
               >
                 Where raw materials meet refined vision. Explore our curated
@@ -253,7 +254,6 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
 
               <button
                 onClick={onExplore}
-                // UPDATED CLASS: Default (mobile) has bg-espresso/text-gold, md (desktop) reverts to transparent/text-espresso
                 className="pointer-events-auto inline-block px-10 py-3 mt-4 rounded-full border text-xs font-bold tracking-widest uppercase transition-all duration-300 border-[#371E10] bg-[#371E10] text-[#CD9860] md:bg-transparent md:text-[#371E10] hover:bg-[#371E10] hover:text-[#CD9860]"
               >
                 View Collection
