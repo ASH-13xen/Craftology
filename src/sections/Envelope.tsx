@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
 import ProductCard, { CoinItem } from "@/components/ProductCard";
@@ -42,7 +48,6 @@ const FILTERS = {
 };
 
 // --- INTERFACE ---
-// We can treat EnvelopeItem as CoinItem since they share the same structure for the card
 export type EnvelopeItem = CoinItem;
 
 interface EnvelopeProps {
@@ -111,33 +116,61 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     fetchData();
   }, []);
 
-  // --- FILTER LOGIC ---
-  const filteredData = data.filter((item) => {
-    const matchOccasion =
-      selectedOccasion === "All" || item.tags.includes(selectedOccasion);
-    const matchDesign =
-      selectedDesign === "All" || item.tags.includes(selectedDesign);
-    return matchOccasion && matchDesign;
-  });
+  // --- OPTIMIZED FILTER LOGIC (useMemo) ---
+  // This prevents the heavy .filter() from running on every render/animation frame
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      const matchOccasion =
+        selectedOccasion === "All" || item.tags.includes(selectedOccasion);
+      const matchDesign =
+        selectedDesign === "All" || item.tags.includes(selectedDesign);
+      return matchOccasion && matchDesign;
+    });
+  }, [data, selectedOccasion, selectedDesign]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = filteredData.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE,
-  );
+
+  // Memoize the current slice to prevent jitter
+  const currentItems = useMemo(() => {
+    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredData, startIndex]);
+
+  // --- HANDLERS (useCallback) ---
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSelectedOccasion("All");
+    setSelectedDesign("All");
+    setCurrentPage(1);
+  }, []);
+
+  const openModal = useCallback((product: EnvelopeItem) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  }, []);
 
   // --- ANIMATIONS ---
+  // Grid Animation
   useEffect(() => {
     if (!loading && gridRef.current && currentItems.length > 0) {
+      // Kill any ongoing tweens on these elements before starting new ones
+      gsap.killTweensOf(gridRef.current.children);
+
       gsap.fromTo(
         gridRef.current.children,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: "power3.out" },
       );
     }
-  }, [currentItems, loading]);
+  }, [currentItems, loading]); // Dependent on memoized currentItems
 
+  // Filter Panel Animation
   useEffect(() => {
     if (filterPanelRef.current) {
       if (isFilterOpen) {
@@ -158,7 +191,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     }
   }, [isFilterOpen]);
 
-  // --- MARQUEE ANIMATION ---
+  // Marquee Animation
   useEffect(() => {
     if (loading) return;
 
@@ -179,37 +212,16 @@ export default function Envelope({ onBack }: EnvelopeProps) {
     return () => ctx.revert();
   }, [loading]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const clearFilters = () => {
-    setSelectedOccasion("All");
-    setSelectedDesign("All");
-    setCurrentPage(1);
-  };
-
-  const openModal = (product: EnvelopeItem) => {
-    setSelectedProduct(product);
-    setIsModalOpen(true);
-  };
-
   // --- PAGINATION HELPER ---
-  // Calculates which pages to show (sliding window of 4)
-  const getVisiblePages = () => {
+  const getVisiblePages = useCallback(() => {
     const maxVisible = 4;
     if (totalPages <= maxVisible) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
 
-    // Determine start page based on current page
     let start = currentPage - 1;
     if (start < 1) start = 1;
 
-    // Adjust if end goes out of bounds
     let end = start + maxVisible - 1;
     if (end > totalPages) {
       end = totalPages;
@@ -221,7 +233,7 @@ export default function Envelope({ onBack }: EnvelopeProps) {
       pages.push(i);
     }
     return pages;
-  };
+  }, [currentPage, totalPages]);
 
   // --- LOADING / ERROR UI ---
   if (loading) {
@@ -418,7 +430,6 @@ export default function Envelope({ onBack }: EnvelopeProps) {
         {/* Product Grid */}
         <div
           ref={gridRef}
-          // ENSURED grid-cols-2 on mobile (default)
           className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-20 min-h-[400px]"
         >
           {currentItems.length > 0 ? (
@@ -452,7 +463,6 @@ export default function Envelope({ onBack }: EnvelopeProps) {
               ←
             </button>
 
-            {/* PAGINATION LOGIC CHANGE: Uses getVisiblePages() instead of mapping all */}
             {getVisiblePages().map((page) => (
               <button
                 key={page}
