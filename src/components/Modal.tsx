@@ -1,9 +1,9 @@
-/* eslint-disable @next/next/no-img-element */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import gsap from "gsap";
-import { getDirectDriveUrl } from "@/utils/driveHelper";
 
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -16,9 +16,10 @@ interface EnvelopeItem {
   _id?: string;
   id?: string | number;
   title: string;
-  price: number;
+  price: string;
   image: string;
-  images?: string[]; // Added to support carousel
+  image2?: string;
+  image3?: string;
   tags: string[];
   insta_reel?: string;
   video_link?: string;
@@ -36,18 +37,30 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Reset carousel index when product changes
   useEffect(() => {
     if (isOpen) {
       setCurrentImageIndex(0);
     }
   }, [isOpen, product]);
 
-  // 1. Logic to get Video URL (Priority 1)
+  // Helper to convert Google Drive links to direct view links
+  const getGoogleDriveImage = (url: string) => {
+    if (!url) return "/placeholder.jpg";
+    if (!url.includes("drive.google.com")) return url;
+
+    const idMatch = url.match(/\/d\/(.*?)\/|id=(.*?)(&|$)/);
+    const fileId = idMatch ? idMatch[1] || idMatch[2] : null;
+
+    if (fileId) {
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    return url;
+  };
+
   const getVideoUrl = (item: EnvelopeItem) => {
     if (item.video_link && item.video_link.trim() !== "") {
       if (item.video_link.includes("drive.google.com")) {
-        return getDirectDriveUrl(item.video_link, "video");
+        return getGoogleDriveImage(item.video_link);
       }
       if (item.video_link.includes("youtube.com/watch?v=")) {
         const videoId = item.video_link.split("v=")[1]?.split("&")[0];
@@ -57,12 +70,11 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
         const videoId = item.video_link.split("youtu.be/")[1]?.split("?")[0];
         return `https://www.youtube.com/embed/${videoId}`;
       }
-      return item.video_link; // direct link
+      return item.video_link;
     }
     return null;
   };
 
-  // 2. Logic to get Instagram Reel (Priority 2)
   const getInstaUrl = (item: EnvelopeItem) => {
     if (item.insta_reel && item.insta_reel.trim() !== "") {
       const cleanUrl = item.insta_reel.split("?")[0];
@@ -71,12 +83,14 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
     return null;
   };
 
-  // 3. Logic to get Images for Carousel (Priority 3)
   const getImages = (item: EnvelopeItem) => {
-    if (item.images && item.images.length > 0) {
-      return item.images;
-    }
-    return [item.image]; // Fallback to single image as array
+    const rawImages = [item.image, item.image2, item.image3].filter(
+      (img): img is string => !!img && img.trim() !== "",
+    );
+
+    const convertedImages = rawImages.map((url) => getGoogleDriveImage(url));
+
+    return convertedImages.length > 0 ? convertedImages : ["/placeholder.jpg"];
   };
 
   const handleNextImage = (e: React.MouseEvent, total: number) => {
@@ -124,27 +138,23 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
 
   if (!isOpen || !product) return null;
 
-  // Determine what to show based on priority
   const videoSrc = getVideoUrl(product);
   const instaSrc = !videoSrc ? getInstaUrl(product) : null;
   const productImages = !videoSrc && !instaSrc ? getImages(product) : [];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-8">
-      {/* Backdrop */}
       <div
         ref={overlayRef}
         onClick={onClose}
         className="absolute inset-0 bg-[#371E10]/60 backdrop-blur-sm opacity-0 cursor-pointer"
       ></div>
 
-      {/* Modal Content */}
       <div
         ref={modalRef}
         className="relative w-[94%] max-w-5xl h-[80vh] md:h-[85vh] bg-[#F9F0EB] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row opacity-0"
         style={{ color: COLORS.ESPRESSO }}
       >
-        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-2.5 right-2.5 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white/90 hover:bg-[#371E10] hover:text-white transition-colors border border-[#371E10]/10 shadow-lg text-xs"
@@ -153,59 +163,60 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
         </button>
 
         {/* LEFT SIDE: Media Display */}
-        <div className="w-full md:w-1/2 h-[55%] md:h-full bg-black flex items-center justify-center relative shrink-0 group">
+        <div className="w-full md:w-1/2 h-[45%] md:h-full bg-[#E5DACE] flex items-center justify-center relative shrink-0 group p-6 md:p-10">
           {videoSrc ? (
-            // Priority 1: Video
             <iframe
               src={videoSrc}
               className="w-full h-full object-cover"
               frameBorder="0"
-              scrolling="no"
-              allowTransparency={true}
               allowFullScreen={true}
             ></iframe>
           ) : instaSrc ? (
-            // Priority 2: Instagram Reel
             <iframe
               src={instaSrc}
               className="w-full h-full object-cover"
               frameBorder="0"
               scrolling="no"
-              allowTransparency={true}
               allowFullScreen={true}
             ></iframe>
           ) : (
-            // Priority 3: Image Carousel
             <>
-              <img
-                src={productImages[currentImageIndex]}
-                alt={product.title}
-                className="w-full h-full object-cover opacity-80"
-              />
+              {/* IMAGE CAROUSEL WITH NEXT/IMAGE */}
+              <div className="relative w-full h-full">
+                <Image
+                  key={currentImageIndex}
+                  src={productImages[currentImageIndex]}
+                  alt={product.title}
+                  fill
+                  className="object-contain transition-transform duration-1000"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority={true}
+                />
+              </div>
 
-              {/* Carousel Controls - Only show if > 1 image */}
               {productImages.length > 1 && (
                 <>
+                  {/* UPDATED: Buttons are now visible by default on mobile (opacity-100) and follow hover logic on desktop */}
                   <button
                     onClick={(e) => handlePrevImage(e, productImages.length)}
-                    className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 z-10"
                   >
                     ←
                   </button>
                   <button
                     onClick={(e) => handleNextImage(e, productImages.length)}
-                    className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 z-10"
                   >
                     →
                   </button>
-                  {/* Dots Indicator */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {/* Progress Dots */}
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                     {productImages.map((_, idx) => (
                       <div
                         key={idx}
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                        className={`w-2 h-2 rounded-full transition-all ${
                           idx === currentImageIndex
-                            ? "bg-white scale-110"
+                            ? "bg-white scale-125"
                             : "bg-white/40"
                         }`}
                       />
@@ -218,40 +229,29 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
         </div>
 
         {/* RIGHT SIDE: Product Details */}
-        <div className="w-full md:w-1/2 flex-1 md:h-full p-4 sm:p-8 md:p-12 overflow-y-auto flex flex-col">
-          <div className="mb-3 md:mb-0">
-            <h2 className="text-xl md:text-5xl font-serif mb-1 leading-tight md:leading-[0.9]">
+        <div className="w-full md:w-1/2 flex-1 md:h-full p-6 sm:p-8 md:p-12 overflow-y-auto flex flex-col">
+          <div>
+            <h2 className="text-2xl md:text-5xl font-serif mb-2 leading-tight">
               {product.title}
             </h2>
-            <p className="font-mono text-sm md:text-xl mb-3 md:mb-8 opacity-100 text-[#CD9860]">
+            <p className="font-mono text-xl md:text-2xl mb-6 text-[#CD9860]">
               ₹{product.price}
             </p>
           </div>
 
-          <div className="hidden md:block w-12 h-[1px] bg-[#371E10]/20 mb-8"></div>
-          <div className="block md:hidden w-full h-[1px] bg-[#371E10]/10 mb-4"></div>
+          <div className="w-12 h-px bg-[#371E10]/20 mb-8"></div>
 
-          <div className="mb-4 md:mb-8">
-            <h3 className="font-bold text-[9px] md:text-xs tracking-[0.2em] mb-1.5 md:mb-3 uppercase opacity-60">
+          <div className="mb-8">
+            <h3 className="font-bold text-xs tracking-[0.2em] mb-3 uppercase opacity-60">
               Description
             </h3>
-            <p className="text-[13px] md:text-lg leading-relaxed opacity-80 font-serif font-light">
-              {product.description ? (
-                product.description
-              ) : (
-                <>
-                  This handcrafted item adds a touch of elegance to your{" "}
-                  {product.tags && product.tags.length > 0
-                    ? product.tags[0]
-                    : "special occasion"}
-                  . Made with premium materials and designed to leave a lasting
-                  impression.
-                </>
-              )}
+            <p className="text-sm md:text-lg leading-relaxed opacity-80 font-serif font-light">
+              {product.description ||
+                "Handcrafted with premium materials and designed to leave a lasting impression."}
             </p>
           </div>
 
-          <div className="mt-auto pt-2">
+          <div className="mt-auto">
             <button
               onClick={() =>
                 window.open(
@@ -259,7 +259,7 @@ export default function Modal({ isOpen, onClose, product }: ModalProps) {
                   "_blank",
                 )
               }
-              className="w-full py-3 md:py-4 bg-[#371E10] text-[#F9F0EB] font-bold text-[10px] md:text-xs tracking-[0.2em] uppercase hover:bg-[#CD9860] transition-colors rounded-lg md:rounded-sm shadow-md"
+              className="w-full py-4 bg-[#371E10] text-[#F9F0EB] font-bold text-xs tracking-[0.2em] uppercase hover:bg-[#CD9860] transition-colors rounded-lg shadow-md"
             >
               Order on WhatsApp
             </button>

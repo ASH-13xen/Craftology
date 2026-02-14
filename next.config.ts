@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactCompiler: true,
   images: {
     remotePatterns: [
       {
@@ -11,7 +10,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "lh3.googleusercontent.com", // Google often redirects here
+        hostname: "lh3.googleusercontent.com", // Google Drive thumbnails often redirect here
+      },
+      {
+        protocol: "https",
+        hostname: "doc-0s-40-docs.googleusercontent.com", // Another common Google Drive redirect domain
       },
     ],
   },

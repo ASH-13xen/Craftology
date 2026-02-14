@@ -38,6 +38,22 @@ const PRODUCTS = [
     img: "/coinbox.jpg",
   },
   {
+    id: "toran",
+    title: "Toran",
+    subtitle: "Welcome with Grace",
+    description:
+      "Traditional door hangings handcrafted with beads, motifs, and vibrant threads to invite prosperity into your home.",
+    img: "/toran.png",
+  },
+  {
+    id: "tag",
+    title: "Tags",
+    subtitle: "The Perfect Finish",
+    description:
+      "Add a personal touch to every gift. Custom-designed tags that turn simple wrapping into a heartfelt gesture.",
+    img: "/tag.JPG",
+  },
+  {
     id: "resin",
     title: "Resin Art",
     subtitle: "Fluid Beauty",

@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import gsap from "gsap";
+
+// --- CONFIGURATION ---
+const API_URL = "https://craftology-backend.onrender.com/api/workshop";
 
 // --- DARK THEME PALETTE ---
 const COLORS = {
@@ -39,52 +42,78 @@ interface WorkshopItem {
   image: string;
   locationName: string;
   locationAddress: string;
-  mapEmbedUrl: string;
-  mapLink: string;
+  mapEmbedUrl: string; // The src for the iframe
+  mapLink: string; // The external link
 }
 
-interface WorkshopProps {
-  // Accepts raw data from Server Component
-  data: any[];
-}
+export default function Workshop() {
+  // --- STATE ---
+  const [workshop, setWorkshop] = useState<WorkshopItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function Workshop({ data: serverData }: WorkshopProps) {
   // --- REFS ---
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  // --- DATA PROCESSING (Replaces Fetching) ---
-  const workshop: WorkshopItem | null = useMemo(() => {
-    // 1. Safety check
-    if (!Array.isArray(serverData) || serverData.length === 0) {
-      return null;
-    }
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error("Failed to fetch workshop data");
+        }
+        const jsonData = await response.json();
 
-    // 2. Logic: Get the MOST RECENT workshop (Last item in the array)
-    const item = serverData[serverData.length - 1];
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        // 1. Check if raw array, or look inside .data / .workshops
+        const workshopsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.workshops || [];
 
-    // 3. Map backend fields to UI fields
-    return {
-      id: item._id || item.id,
-      title: item.title,
-      description: item.description,
-      date: item.date,
-      time: item.time,
-      price: item.price,
-      features: item.features || [],
-      image: item.image || "",
-      locationName: item.location_name || item.locationName || "Venue",
-      locationAddress: item.location_address || item.locationAddress || "",
-      mapEmbedUrl: item.map_embed_url || item.mapEmbedUrl || "",
-      mapLink: item.map_link || item.mapLink || "",
+        // Logic: Get the MOST RECENT workshop (Last item in the array)
+        if (workshopsArray.length > 0) {
+          const item = workshopsArray[workshopsArray.length - 1];
+
+          // Map backend fields to UI fields
+          const formattedWorkshop: WorkshopItem = {
+            id: item._id || item.id,
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            time: item.time,
+            price: item.price,
+            features: item.features || [], // Ensure it's an array
+            image: item.image || "",
+            locationName: item.location_name || item.locationName || "Venue",
+            locationAddress:
+              item.location_address || item.locationAddress || "",
+            mapEmbedUrl: item.map_embed_url || item.mapEmbedUrl || "",
+            mapLink: item.map_link || item.mapLink || "",
+          };
+
+          setWorkshop(formattedWorkshop);
+        } else {
+          setError("No upcoming workshops scheduled.");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Unable to load workshop details.");
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [serverData]);
+
+    fetchData();
+  }, []);
 
   // --- ANIMATIONS ---
   useEffect(() => {
-    // Only run animation if workshop exists and refs exist
-    if (workshop && contentRef.current && mapRef.current) {
+    // Only run animation if data is loaded and refs exist
+    if (!loading && workshop && contentRef.current && mapRef.current) {
       const ctx = gsap.context(() => {
         // Animate Content Slide Up
         gsap.fromTo(
@@ -109,17 +138,37 @@ export default function Workshop({ data: serverData }: WorkshopProps) {
 
       return () => ctx.revert();
     }
-  }, [workshop]);
+  }, [loading, workshop]);
 
-  // --- RENDER: EMPTY STATE ---
-  if (!workshop) {
+  // --- RENDER: LOADING ---
+  if (loading) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center rounded-2xl"
+        style={{ backgroundColor: COLORS.CHAMPAGNE }}
+      >
+        <div className="text-[#F9F0EB] animate-pulse font-serif tracking-widest uppercase text-sm">
+          Loading Workshop...
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: ERROR ---
+  if (error || !workshop) {
     return (
       <div
         className="w-full h-full flex items-center justify-center rounded-2xl"
         style={{ backgroundColor: COLORS.CHAMPAGNE }}
       >
         <div className="text-[#F9F0EB] font-serif text-center p-6">
-          <p className="mb-2">No upcoming workshops scheduled.</p>
+          <p className="mb-2">{error || "No workshop data available."}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs uppercase border-b border-[#CD9860] text-[#CD9860]"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -129,6 +178,7 @@ export default function Workshop({ data: serverData }: WorkshopProps) {
   return (
     <section
       ref={containerRef}
+      // MOBILE: flex-col, overflow-y-auto | DESKTOP: flex-row, overflow-hidden
       className="w-full h-full flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden rounded-2xl relative"
       style={{ backgroundColor: COLORS.CHAMPAGNE, color: COLORS.ESPRESSO }}
     >
@@ -142,6 +192,7 @@ export default function Workshop({ data: serverData }: WorkshopProps) {
       />
 
       {/* --- LEFT COLUMN: DETAILS (50%) --- */}
+      {/* MOBILE: w-full, p-6 | DESKTOP: w-1/2, p-12 */}
       <div className="w-full lg:w-1/2 p-6 lg:p-12 flex flex-col justify-center relative z-10 border-b lg:border-b-0 lg:border-r border-[#F9F0EB]/10 shrink-0">
         <div
           ref={contentRef}
@@ -158,12 +209,12 @@ export default function Workshop({ data: serverData }: WorkshopProps) {
               </span>
             </div>
 
-            {/* Title */}
+            {/* Responsive Title Size */}
             <h1 className="text-3xl lg:text-7xl font-serif leading-[0.9] mb-4 lg:mb-6 text-[#F9F0EB]">
               {workshop.title}
             </h1>
 
-            {/* Body Text */}
+            {/* Responsive Body Text */}
             <p className="text-sm lg:text-lg leading-relaxed opacity-80 font-serif font-light max-w-md mb-6 lg:mb-8 text-[#F9F0EB]/80">
               {workshop.description}
             </p>

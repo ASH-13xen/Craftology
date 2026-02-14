@@ -222,16 +222,16 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
       {/* --- 3. THE CONTENT (Left Side) --- */}
       <div className="relative z-10 w-full max-w-8xl px-8 md:px-35 grid grid-cols-1 md:grid-cols-2 h-full pointer-events-none">
         {/* Left Column Wrapper */}
-        <div className="flex flex-col h-full justify-start pt-10 md:pt-29 relative md:pr-25">
+        <div className="flex flex-col h-full justify-start pt-11 md:pt-20 relative md:pr-25">
           {/* CORNER TAGS */}
           <div ref={tagsRef}></div>
 
           {/* Main Center Block */}
-          <div className="flex flex-col items-start md:items-start space-y-8 md">
+          <div className="flex flex-col items-start md:items-start space-y-6 md:space-y-6">
             {/* TEXT SECTION */}
             <div
               ref={textRef}
-              className="text-center md:text-left space-y-4 md:space-y-6 md:top-10"
+              className="text-center md:text-left space-y-4 md:space-y-5 md:top-5"
             >
               <h2
                 className="text-[40px] md:text-8xl font-serif font-light tracking-tighter leading-[0.9]"
@@ -243,7 +243,7 @@ export default function Hero({ onExplore, onViewThemes, isActive }: HeroProps) {
               </h2>
 
               <p
-                className="max-w-md pt-30 font-semibold md:pt-0 text-sm md:text-base leading-relaxed"
+                className="max-w-md pt-42 font-semibold font-serif tracking-tighter md:pt-0 text-sm md:text-base leading-relaxed"
                 style={{ color: COLORS.ESPRESSO }}
               >
                 Where raw materials meet refined vision. Explore our curated

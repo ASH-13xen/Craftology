@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import gsap from "gsap";
 import Modal from "@/components/Modal";
 import ProductCard, { CoinItem } from "@/components/ProductCard";
@@ -8,6 +9,7 @@ import ProductCard, { CoinItem } from "@/components/ProductCard";
 // --- CONFIGURATION ---
 const ITEMS_PER_PAGE = 12;
 const WHATSAPP_LINK = "https://wa.me/919876543210";
+const API_URL = "https://craftology-backend.onrender.com/api/gaddi";
 
 const COLORS = {
   LINEN: "#F9F0EB",
@@ -18,16 +20,19 @@ const COLORS = {
 };
 
 // --- INTERFACES ---
+// We alias GaddiItem to CoinItem as they share the exact same structure for the card
 export type GaddiItem = CoinItem;
 
 interface GaddiProps {
   onBack?: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any[]; // Accepts raw data from Server Component
 }
 
-export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
+export default function Gaddi({ onBack }: GaddiProps) {
   // --- STATE ---
+  const [data, setData] = useState<GaddiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<GaddiItem | null>(
     null,
@@ -39,48 +44,66 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const marqueeTrackRef = useRef<HTMLDivElement>(null);
 
-  // --- DATA SANITIZATION ---
-  // Process server data to match UI requirements
-  const formattedData: GaddiItem[] = useMemo(() => {
-    if (!Array.isArray(serverData)) return [];
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error("Failed to fetch data");
+        }
+        const jsonData = await response.json();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return serverData.map((item: any) => ({
-      ...item,
-      id: item.id || item._id, // Handle MongoDB _id
-      tags: item.tags || [],
-      insta_reel: item.insta_reel || "",
-      video_link: item.video_link || "",
-      description: item.description || "",
-      image: item.image || "",
-      title: item.title || "Untitled Gaddi",
-      price: item.price || 0,
-    }));
-  }, [serverData]);
+        // --- FIX: SAFE ARRAY EXTRACTION ---
+        const itemsArray = Array.isArray(jsonData)
+          ? jsonData
+          : jsonData.data || jsonData.gaddis || [];
+
+        // Format data
+        const formattedData = itemsArray.map((item: any) => ({
+          ...item,
+          id: item.id || item._id,
+          tags: item.tags || [],
+          insta_reel: item.insta_reel || "",
+          video_link: item.video_link || "",
+          description: item.description || "",
+          image: item.image || "",
+        }));
+
+        setData(formattedData);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load Gaddi collection.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // --- PAGINATION LOGIC ---
-  const totalPages = Math.ceil(formattedData.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = formattedData.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE,
-  );
+  const currentItems = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // --- ANIMATIONS ---
 
   // 1. Grid Entrance
   useEffect(() => {
-    if (gridRef.current && currentItems.length > 0) {
+    if (!loading && gridRef.current && currentItems.length > 0) {
       gsap.fromTo(
         gridRef.current.children,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: "power3.out" },
       );
     }
-  }, [currentItems]);
+  }, [currentItems, loading]);
 
   // 2. Marquee Animation
   useEffect(() => {
+    if (loading) return;
+
     const ctx = gsap.context(() => {
       if (marqueeTrackRef.current) {
         gsap.fromTo(
@@ -96,7 +119,7 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
       }
     });
     return () => ctx.revert();
-  }, []);
+  }, [loading]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -110,7 +133,7 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
     setIsModalOpen(true);
   };
 
-  // --- PAGINATION HELPER ---
+  // --- PAGINATION HELPER (Same as Envelope) ---
   const getVisiblePages = () => {
     const maxVisible = 4;
     if (totalPages <= maxVisible) {
@@ -132,6 +155,37 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
     }
     return pages;
   };
+
+  // --- LOADING STATE ---
+  if (loading) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] animate-pulse font-serif tracking-widest uppercase">
+          Loading Gaddi Collection...
+        </div>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (error) {
+    return (
+      <div
+        className="flex h-screen w-full items-center justify-center"
+        style={{ backgroundColor: COLORS.LINEN }}
+      >
+        <div className="text-[#371E10] font-serif">
+          {error} <br />{" "}
+          <span className="text-xs opacity-50">
+            Check connection to backend
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   // --- RENDER ---
   return (
@@ -159,23 +213,33 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
       >
         <div className="flex w-full overflow-hidden">
           <div ref={marqueeTrackRef} className="flex whitespace-nowrap w-max">
-            {[1, 2].map((set) => (
-              <div
-                key={set}
-                className="flex items-center gap-16 px-8 flex-shrink-0"
-              >
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <span
-                    key={`${set}-${i}`}
-                    className="text-[#F9F0EB] text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
-                  >
-                    <span>Ceremonial Luxury</span> •{" "}
-                    <span>Chat on WhatsApp to Order</span> •{" "}
-                    <span>Handcrafted Heritage</span> •
-                  </span>
-                ))}
-              </div>
-            ))}
+            {/* Set 1 */}
+            <div className="flex items-center gap-16 px-8 flex-shrink-0">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <span
+                  key={`a-${i}`}
+                  className="text-[#F9F0EB] text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
+                >
+                  <span>Ceremonial Luxury</span> •{" "}
+                  <span>Chat on WhatsApp to Order</span> •{" "}
+                  <span>Handcrafted Heritage</span> •
+                </span>
+              ))}
+            </div>
+
+            {/* Set 2 - Clone */}
+            <div className="flex items-center gap-16 px-8 flex-shrink-0">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <span
+                  key={`b-${i}`}
+                  className="text-[#F9F0EB] text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-4"
+                >
+                  <span>Ceremonial Luxury</span> •{" "}
+                  <span>Chat on WhatsApp to Order</span> •{" "}
+                  <span>Handcrafted Heritage</span> •
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </a>
@@ -210,6 +274,7 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
         {/* --- PRODUCT GRID --- */}
         <div
           ref={gridRef}
+          // UPDATED: grid-cols-2 on mobile, gap-3
           className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-20 min-h-[400px]"
         >
           {currentItems.length > 0 ? (
@@ -237,6 +302,7 @@ export default function Gaddi({ onBack, data: serverData }: GaddiProps) {
               ←
             </button>
 
+            {/* UPDATED: Uses getVisiblePages() to limit visible buttons */}
             {getVisiblePages().map((page) => {
               const isActive = currentPage === page;
               const pageNum = page < 10 ? `0${page}` : page;

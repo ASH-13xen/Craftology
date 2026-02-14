@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect } from "react";
 import gsap from "gsap";
 
 const COLORS = {
@@ -14,17 +14,12 @@ const COLORS = {
 
 export default function Contact() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
-
-  // Form State
-  const [formStatus, setFormStatus] = useState<"idle" | "sending" | "sent">(
-    "idle",
-  );
+  const customSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Animate Info Column
+      // Animate Info Column (Left)
       gsap.fromTo(
         infoRef.current?.children || [],
         { y: 20, opacity: 0 },
@@ -38,16 +33,15 @@ export default function Contact() {
         },
       );
 
-      // Animate Form Inputs
+      // Animate Customization Section (Right)
       gsap.fromTo(
-        formRef.current?.children || [],
-        { x: 20, opacity: 0 },
+        customSectionRef.current,
+        { x: 40, opacity: 0 },
         {
           x: 0,
           opacity: 1,
-          duration: 0.8,
-          stagger: 0.1,
-          ease: "power3.out",
+          duration: 1,
+          ease: "power4.out",
           delay: 0.4,
         },
       );
@@ -56,22 +50,13 @@ export default function Contact() {
     return () => ctx.revert();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormStatus("sending");
-    setTimeout(() => {
-      setFormStatus("sent");
-      setTimeout(() => setFormStatus("idle"), 3000);
-    }, 1500);
-  };
-
   return (
     <section
       ref={containerRef}
       className="w-full h-full flex flex-col md:flex-row overflow-y-auto md:overflow-hidden rounded-2xl relative"
       style={{ backgroundColor: COLORS.CHAMPAGNE, color: COLORS.ESPRESSO }}
     >
-      {/* --- DECORATIVE NOISE TEXTURE (Covers Entire Section) --- */}
+      {/* Decorative Noise Texture */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.4] mix-blend-multiply z-0"
         style={{
@@ -83,39 +68,28 @@ export default function Contact() {
       {/* --- LEFT COLUMN: INFO (40%) --- */}
       <div className="w-full md:w-2/5 p-8 md:p-12 flex flex-col gap-8 md:justify-between border-b md:border-b-0 md:border-r border-[#371E10]/10 relative z-10 shrink-0">
         <div ref={infoRef}>
-          {/* Header */}
           <div className="mb-8 md:mb-12">
             <span className="text-[#CD9860] text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">
               Get in Touch
             </span>
-            {/* Reduced Headline Size */}
             <h1 className="text-3xl md:text-5xl font-serif leading-[0.9] mb-4">
               Let's Craft <br /> Your Story.
             </h1>
-            {/* Reduced Body Text Size */}
             <p className="opacity-70 text-sm md:text-base leading-relaxed font-light max-w-xs">
-              Have a custom idea? Looking for bulk gifting? Or just want to say
-              hello? We are all ears.
+              Have a general inquiry or just want to say hello? We are all ears.
             </p>
           </div>
 
-          {/* Details Grid */}
           <div className="space-y-6">
-            {/* Address */}
             <div>
               <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">
                 Visit The Studio
               </h4>
               <p className="font-serif text-base md:text-lg leading-snug">
-                Walfort City,
-                <br />
-                Bhatagaon,
-                <br />
-                Raipur
+                Walfort City, Bhatagaon, Raipur
               </p>
             </div>
 
-            {/* Contact */}
             <div className="flex flex-col gap-1">
               <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">
                 Direct Contact
@@ -130,24 +104,24 @@ export default function Contact() {
                 href="mailto:hello@email.com"
                 className="font-mono text-sm md:text-base hover:text-[#CD9860] transition-colors w-fit"
               >
-                hello@email.com
+                craftologywithanupama01@gmail.com
               </a>
             </div>
           </div>
         </div>
 
-        {/* --- Social Icons Footer (SVG Icons) --- */}
+        {/* Social Icons */}
         <div className="mt-4 md:mt-12 flex gap-6 items-center flex-wrap">
           {/* Instagram */}
           <a
-            href="#"
+            href="https://www.instagram.com/craftologywithanupama?igsh=MXVpcW1uZGVpM2Nv"
             className="group transition-transform hover:scale-110"
             aria-label="Instagram"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
+              width="22"
+              height="22"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -162,62 +136,34 @@ export default function Contact() {
             </svg>
           </a>
 
-          {/* Facebook */}
-          <a
-            href="#"
-            className="group transition-transform hover:scale-110"
-            aria-label="Facebook"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-[#371E10] group-hover:text-[#CD9860] transition-colors"
-            >
-              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-            </svg>
-          </a>
-
           {/* Pinterest */}
           <a
-            href="#"
+            href="https://in.pinterest.com/agarwalanupama78/"
             className="group transition-transform hover:scale-110"
             aria-label="Pinterest"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
+              width="22"
+              height="22"
               viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              fill="currentColor"
               className="text-[#371E10] group-hover:text-[#CD9860] transition-colors"
             >
-              <path d="M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0" />
-              <path d="M10.72 6.12a6 6 0 1 1 2.56 0" />
-              <path d="M12 21.5v-8" />
+              <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.399.165-1.495-.69-2.433-2.852-2.433-4.587 0-3.725 2.705-7.149 7.824-7.149 4.105 0 7.296 2.926 7.296 6.845.033 4.106-2.581 7.412-6.164 7.412-1.205 0-2.336-.625-2.724-1.365l-.74 2.82c-.266 1.026-.992 2.308-1.474 3.09 1.107.331 2.274.509 3.476.509 6.621 0 11.987-5.367 11.987-11.987C23.97 5.39 18.594.026 12.017 0z" />
             </svg>
           </a>
 
-          {/* YouTube (Added) */}
+          {/* YouTube */}
           <a
-            href="#"
+            href="https://www.youtube.com/@craftologywithanupama"
             className="group transition-transform hover:scale-110"
             aria-label="YouTube"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
+              width="24"
+              height="24"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -231,18 +177,16 @@ export default function Contact() {
             </svg>
           </a>
 
-          {/* WhatsApp */}
+          {/* Facebook */}
           <a
-            href="https://wa.me/919303410393"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="https://www.facebook.com/craftologywithanupama"
             className="group transition-transform hover:scale-110"
-            aria-label="WhatsApp"
+            aria-label="Facebook"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
+              width="22"
+              height="22"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -251,83 +195,57 @@ export default function Contact() {
               strokeLinejoin="round"
               className="text-[#371E10] group-hover:text-[#CD9860] transition-colors"
             >
-              <path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" />
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
             </svg>
           </a>
         </div>
       </div>
 
-      {/* --- RIGHT COLUMN: FORM (60%) --- */}
-      <div className="w-full md:w-3/5 p-6 md:p-12 flex flex-col justify-center relative z-10 bg-[#371E10]/[0.02]">
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-5 h-full justify-center"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="group relative">
-              <input
-                type="text"
-                required
-                placeholder=" "
-                className="peer w-full bg-transparent border-b border-[#371E10]/20 py-3 text-base font-serif text-[#371E10] focus:outline-none focus:border-[#371E10] transition-colors"
-              />
-              <label className="absolute left-0 top-3 text-[#371E10]/40 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all peer-focus:-top-2 peer-focus:text-[9px] peer-focus:text-[#CD9860] peer-not-placeholder-shown:-top-2 peer-not-placeholder-shown:text-[9px] peer-not-placeholder-shown:text-[#CD9860] pointer-events-none">
-                Your Name
-              </label>
-            </div>
+      {/* --- RIGHT COLUMN: CUSTOMIZATION SECTION (60%) --- */}
+      <div
+        ref={customSectionRef}
+        className="w-full md:w-3/5 p-8 md:p-20 flex flex-col justify-center items-center text-center relative z-10"
+        style={{ backgroundColor: COLORS.ESPRESSO }}
+      >
+        {/* Subtle Background Pattern */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
-            <div className="group relative">
-              <input
-                type="email"
-                required
-                placeholder=" "
-                className="peer w-full bg-transparent border-b border-[#371E10]/20 py-3 text-base font-serif text-[#371E10] focus:outline-none focus:border-[#371E10] transition-colors"
-              />
-              <label className="absolute left-0 top-3 text-[#371E10]/40 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all peer-focus:-top-2 peer-focus:text-[9px] peer-focus:text-[#CD9860] peer-not-placeholder-shown:-top-2 peer-not-placeholder-shown:text-[9px] peer-not-placeholder-shown:text-[#CD9860] pointer-events-none">
-                Email Address
-              </label>
-            </div>
-          </div>
+        <div className="relative z-10 max-w-md">
+          <span className="text-[#CD9860] text-xs font-bold tracking-[0.3em] uppercase block mb-6">
+            Custom Orders & Bulk Gifting
+          </span>
 
-          <div className="group relative">
-            <input
-              type="text"
-              required
-              placeholder=" "
-              className="peer w-full bg-transparent border-b border-[#371E10]/20 py-3 text-base font-serif text-[#371E10] focus:outline-none focus:border-[#371E10] transition-colors"
-            />
-            <label className="absolute left-0 top-3 text-[#371E10]/40 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all peer-focus:-top-2 peer-focus:text-[9px] peer-focus:text-[#CD9860] peer-not-placeholder-shown:-top-2 peer-not-placeholder-shown:text-[9px] peer-not-placeholder-shown:text-[#CD9860] pointer-events-none">
-              Subject
-            </label>
-          </div>
+          <h2 className="text-4xl md:text-6xl font-serif text-[#F9F0EB] leading-[1.1] mb-8">
+            Customize <br /> Your Gifts.
+          </h2>
 
-          <div className="group relative flex-grow">
-            <textarea
-              required
-              placeholder=" "
-              className="peer w-full h-full min-h-[120px] bg-transparent border border-[#371E10]/10 p-3 text-base font-serif text-[#371E10] focus:outline-none focus:border-[#371E10]/40 transition-colors resize-none rounded-sm"
-            />
-            <label className="absolute left-3 top-3 text-[#371E10]/40 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all peer-focus:-top-2.5 peer-focus:left-0 peer-focus:text-[9px] peer-focus:text-[#CD9860] peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:left-0 peer-not-placeholder-shown:text-[9px] peer-not-placeholder-shown:text-[#CD9860] pointer-events-none bg-[#F2E6D8] px-1">
-              Tell us about your requirement...
-            </label>
-          </div>
+          <p className="text-[#F9F0EB] opacity-70 text-base md:text-lg font-light leading-relaxed mb-12">
+            From bespoke scrapbooks to wedding envelopes, we specialize in
+            making your gifts personal. Chat with us directly.
+          </p>
 
-          <button
-            type="submit"
-            disabled={formStatus !== "idle"}
-            className="w-full py-4 bg-[#371E10] text-[#F9F0EB] text-[10px] font-bold tracking-[0.25em] uppercase hover:bg-[#CD9860] disabled:bg-[#371E10]/50 transition-all duration-300 mt-2 flex items-center justify-center gap-3"
+          <a
+            href="https://wa.me/919303410393?text=Hi! I'm interested in customizing a gift."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-center gap-4 bg-[#CD9860] text-[#371E10] py-5 px-10 rounded-full font-bold uppercase tracking-widest text-xs hover:bg-[#F9F0EB] transition-all duration-500 shadow-2xl hover:scale-105"
           >
-            {formStatus === "idle" && (
-              <>
-                <span>Send Message</span>
-                <span className="text-base">→</span>
-              </>
-            )}
-            {formStatus === "sending" && <span>Sending...</span>}
-            {formStatus === "sent" && <span>Message Sent!</span>}
-          </button>
-        </form>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" />
+            </svg>
+            <span>Message on WhatsApp</span>
+          </a>
+        </div>
       </div>
     </section>
   );
